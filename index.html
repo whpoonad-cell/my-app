@@ -224,6 +224,11 @@ input[type=number]{ -moz-appearance:textfield; }
         <span id="stats-month-label" class="text-sm font-bold text-gray-700 flex-1 text-center"></span>
         <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
       </div>
+      <div class="px-4 py-2 flex-shrink-0 bg-amber-50 border-b border-amber-100">
+        <select id="stats-ledger-select" onchange="onStatsLedgerChange(this.value)" class="w-full border-2 border-amber-200 rounded-xl px-3 py-2 text-sm font-semibold inp-amber bg-white">
+          <option value="__all__">📊 全部帳本</option>
+        </select>
+      </div>
       <div class="flex-1 panel-scroll px-4 py-3 pb-24 space-y-4">
         <div class="grid grid-cols-2 gap-3">
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"><div class="text-xs text-gray-400 font-semibold mb-1">💚 本月收入</div><div class="text-xl font-black text-green-500" id="stats-income-val">0</div></div>
@@ -485,6 +490,31 @@ input[type=number]{ -moz-appearance:textfield; }
   </div>
 </div>
 
+<!-- Edit Ledger Modal -->
+<div id="edit-ledger-modal" class="modal-overlay center hidden" onclick="closeIfBdrop(event,'edit-ledger-modal')">
+  <div class="modal-sheet">
+    <div class="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+      <div class="font-black text-gray-900 text-base">編輯帳本</div>
+      <button onclick="closeModal('edit-ledger-modal')" class="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm">✕</button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div><label class="block text-xs font-bold text-gray-500 mb-1.5">帳本名稱</label><input id="edit-ledger-name-input" type="text" placeholder="例如：日常" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
+      <div>
+        <label class="block text-xs font-bold text-gray-500 mb-1.5">貨幣</label>
+        <select id="edit-ledger-currency-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white">
+          <option value="HKD">🇭🇰 HKD — 港幣</option><option value="USD">🇺🇸 USD — 美元</option><option value="JPY">🇯🇵 JPY — 日圓</option>
+          <option value="CNY">🇨🇳 CNY — 人民幣</option><option value="TWD">🇹🇼 TWD — 台幣</option><option value="GBP">🇬🇧 GBP — 英鎊</option>
+          <option value="EUR">🇪🇺 EUR — 歐元</option><option value="KRW">🇰🇷 KRW — 韓圜</option><option value="AUD">🇦🇺 AUD — 澳元</option><option value="SGD">🇸🇬 SGD — 新加坡元</option>
+        </select>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="deleteEditingLedger()" class="flex-none px-4 py-3 rounded-xl bg-red-50 text-red-500 font-bold text-sm">🗑️ 刪除</button>
+        <button onclick="saveEditLedger()" class="flex-1 py-3 rounded-xl bg-amber-400 text-gray-900 font-black">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Account Modal -->
 <div id="account-modal" class="modal-overlay center hidden" onclick="closeIfBdrop(event,'account-modal')">
   <div class="modal-sheet">
@@ -651,8 +681,15 @@ input[type=number]{ -moz-appearance:textfield; }
     <div class="p-5 space-y-4">
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">費用說明</label><input id="split-desc-input" type="text" placeholder="例如：晚餐" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
       <div>
-        <label class="block text-xs font-bold text-gray-500 mb-1.5">金額 (HKD)</label>
-        <div class="relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">HK$</span><input id="split-amount-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" oninput="updateSplitRows()" class="w-full pl-14 pr-4 py-3 text-2xl font-black text-right border-2 border-gray-200 rounded-xl inp-amber bg-gray-50"></div>
+        <label class="block text-xs font-bold text-gray-500 mb-1.5">金額</label>
+        <div class="flex gap-2">
+          <select id="split-currency-input" class="border-2 border-gray-200 rounded-xl px-2 py-3 text-sm font-bold inp-amber bg-white flex-shrink-0">
+            <option value="HKD">HK$</option><option value="USD">US$</option><option value="JPY">¥JPY</option>
+            <option value="CNY">¥CNY</option><option value="TWD">NT$</option><option value="GBP">£</option>
+            <option value="EUR">€</option><option value="KRW">₩</option><option value="AUD">A$</option><option value="SGD">S$</option>
+          </select>
+          <input id="split-amount-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" oninput="updateSplitRows()" class="flex-1 pr-4 py-3 text-2xl font-black text-right border-2 border-gray-200 rounded-xl inp-amber bg-gray-50">
+        </div>
       </div>
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">由誰付款</label><select id="split-payer-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select></div>
       <div>
@@ -684,7 +721,12 @@ input[type=number]{ -moz-appearance:textfield; }
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">習慣名稱</label><input id="habit-name-input" type="text" placeholder="例如：運動 30 分鐘" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
       <div>
         <label class="block text-xs font-bold text-gray-500 mb-2">圖示</label>
-        <div class="flex flex-wrap gap-2" id="habit-icon-grid"></div>
+        <div class="flex flex-wrap gap-2 mb-2" id="habit-icon-grid"></div>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="text-xs text-gray-400 font-semibold flex-shrink-0">自定義：</span>
+          <input id="habit-custom-icon-input" type="text" maxlength="2" placeholder="輸入 Emoji" class="w-24 border-2 border-gray-200 rounded-xl px-3 py-2 text-xl text-center inp-amber" oninput="onHabitCustomIconInput(this.value)">
+          <span class="text-xs text-gray-400">（優先採用）</span>
+        </div>
       </div>
       <div>
         <label class="block text-xs font-bold text-gray-500 mb-2">顏色</label>
@@ -1021,19 +1063,61 @@ function renderTxItem(t,curr='HKD'){
 
 // ─── RENDER STATS ─────────────────────────────────────────────────────────────
 async function renderStats(){
-  const l=S.ledgers.find(x=>x.id===S.activeLedgerId); const curr=l?l.currency:'HKD';
+  // Populate ledger dropdown
+  const sel=document.getElementById('stats-ledger-select');
+  const prev=sel.value;
+  sel.innerHTML=`<option value="__all__">📊 全部帳本</option>`+S.ledgers.map(l=>`<option value="${l.id}">${esc(l.name)} (${l.currency})</option>`).join('');
+  // Restore selection: default to active ledger on first load
+  if(!S._statsLedgerSel) S._statsLedgerSel=String(S.activeLedgerId);
+  sel.value=S._statsLedgerSel||'__all__';
+
   document.getElementById('stats-month-label').textContent=dayjs(S.currentMonth+'-01').format('YYYY年M月');
   const[start,end]=monthRange(S.currentMonth);
-  const txs=await db.transactions.where('ledgerId').equals(S.activeLedgerId).and(t=>t.date>=start&&t.date<=end).toArray();
-  const income=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  document.getElementById('stats-income-val').textContent=fmtAmt(income,curr);
-  document.getElementById('stats-expense-val').textContent=fmtAmt(expense,curr);
+  const isAll=sel.value==='__all__';
 
-  // Pie using custom category colors
+  if(isAll){
+    // Multi-currency: group by currency
+    const allTxs=await db.transactions.where('date').between(start,end,true,true).toArray();
+    // Build currency buckets
+    const incByCurr={}, expByCurr={};
+    for(const t of allTxs){
+      const l=S.ledgers.find(x=>x.id===t.ledgerId);
+      if(!l)continue;
+      const c=l.currency;
+      if(t.type==='income'){incByCurr[c]=(incByCurr[c]||0)+t.amount;}
+      else if(t.type==='expense'){expByCurr[c]=(expByCurr[c]||0)+t.amount;}
+    }
+    const fmtMulti=(obj,cls)=>{
+      const keys=Object.keys(obj);
+      if(keys.length===0)return`<span class="${cls}">0</span>`;
+      return keys.map(c=>`<div class="${cls} text-lg font-black">${fmtAmt(obj[c],c)}</div>`).join('');
+    };
+    document.getElementById('stats-income-val').innerHTML=fmtMulti(incByCurr,'text-green-500');
+    document.getElementById('stats-expense-val').innerHTML=fmtMulti(expByCurr,'text-red-500');
+
+    // Pie using primary (active) ledger for chart relevance
+    const activeTxs=allTxs.filter(t=>t.ledgerId===S.activeLedgerId);
+    const curr=(S.ledgers.find(x=>x.id===S.activeLedgerId)||{currency:'HKD'}).currency;
+    renderStatsCharts(activeTxs, curr, start, end, S.activeLedgerId);
+  } else {
+    const lid=parseInt(sel.value);
+    const l=S.ledgers.find(x=>x.id===lid); const curr=l?l.currency:'HKD';
+    const txs=await db.transactions.where('ledgerId').equals(lid).and(t=>t.date>=start&&t.date<=end).toArray();
+    const income=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const expense=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    document.getElementById('stats-income-val').innerHTML=`<span class="text-green-500 text-xl font-black">${fmtAmt(income,curr)}</span>`;
+    document.getElementById('stats-expense-val').innerHTML=`<span class="text-red-500 text-xl font-black">${fmtAmt(expense,curr)}</span>`;
+    renderStatsCharts(txs, curr, start, end, lid);
+  }
+}
+function onStatsLedgerChange(v){ S._statsLedgerSel=v; renderStats(); }
+
+async function renderStatsCharts(txs, curr, start, end, ledgerId){
+  // Pie
   const catMap={};
   txs.filter(t=>t.type==='expense').forEach(t=>{catMap[t.category||'💰']=(catMap[t.category||'💰']||0)+t.amount;});
   const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const expense=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   destroyChart('pie-chart');
   if(cats.length>0){
     const catColors=cats.map(c=>{const obj=S.cats.find(x=>x.emoji===c[0]&&x.type==='expense');return obj?obj.color:'#9CA3AF';});
@@ -1054,7 +1138,7 @@ async function renderStats(){
   for(let i=6;i>=0;i--){
     const d=dayjs().subtract(i,'day');
     days.push(d.format('M/D'));
-    vals.push((await db.transactions.where('date').equals(d.format('YYYY-MM-DD')).toArray()).filter(t=>t.type==='expense'&&t.ledgerId===S.activeLedgerId).reduce((s,t)=>s+t.amount,0));
+    vals.push((await db.transactions.where('date').equals(d.format('YYYY-MM-DD')).toArray()).filter(t=>t.type==='expense'&&t.ledgerId===ledgerId).reduce((s,t)=>s+t.amount,0));
   }
   destroyChart('bar-chart');
   charts['bar-chart']=new Chart(document.getElementById('bar-chart').getContext('2d'),{
@@ -1068,7 +1152,7 @@ async function renderStats(){
   for(let i=5;i>=0;i--){
     const m=dayjs().subtract(i,'month'); months.push(m.format('M月'));
     const[ms,mend]=monthRange(m.format('YYYY-MM'));
-    const mtxs=await db.transactions.where('ledgerId').equals(S.activeLedgerId).and(t=>t.date>=ms&&t.date<=mend).toArray();
+    const mtxs=await db.transactions.where('ledgerId').equals(ledgerId).and(t=>t.date>=ms&&t.date<=mend).toArray();
     mi.push(mtxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0));
     me.push(mtxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0));
   }
@@ -1158,7 +1242,7 @@ async function renderSplit(){
           <span class="text-sm font-semibold text-gray-700">${esc(s.from)}</span>
           <span class="text-xs text-gray-400 mx-1">應付給</span>
           <span class="text-sm font-semibold text-gray-700">${esc(s.to)}</span>
-          <span class="ml-auto text-sm font-black text-red-500">${fmtAmt(s.amount,'HKD')}</span>
+          <span class="ml-auto text-sm font-black text-red-500">${fmtAmt(s.amount,s.currency||'HKD')}</span>
           <button onclick="settleDebt()" class="text-xs bg-green-100 text-green-700 font-bold px-2 py-1 rounded-lg">結清</button>
         </div>`).join('')}
       ${settlement.length>0?`<div class="mt-3 flex gap-2">
@@ -1169,11 +1253,17 @@ async function renderSplit(){
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
       <div class="text-sm font-bold text-gray-700 mb-3">👤 成員餘額</div>
       <div class="space-y-2">
-        ${computeMemberBalances(group.members,expenses.filter(e=>!e.settled)).map(mb=>`
+        ${computeMemberBalances(group.members,expenses.filter(e=>!e.settled)).map(mb=>{
+          const entries=Object.entries(mb.byCurrency||{});
+          const balHtml=entries.length===0
+            ?`<span class="text-sm font-black text-gray-400">${fmtAmt(0,'HKD')}</span>`
+            :entries.map(([c,v])=>`<span class="text-sm font-black ${v>=0?'text-green-500':'text-red-500'}">${v>=0?'+':''}${fmtAmt(Math.abs(v),c)}</span>`).join(' ');
+          return `
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-sm font-bold text-purple-700">${mb.name.charAt(0)}</div><span class="text-sm font-semibold text-gray-700">${esc(mb.name)}</span></div>
-            <span class="text-sm font-black ${mb.balance>=0?'text-green-500':'text-red-500'}">${mb.balance>=0?'+':''}${fmtAmt(Math.abs(mb.balance),'HKD')}</span>
-          </div>`).join('')}
+            <div class="flex flex-col items-end gap-0.5">${balHtml}</div>
+          </div>`;
+        }).join('')}
       </div>
     </div>
     <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">費用記錄</div>
@@ -1181,36 +1271,74 @@ async function renderSplit(){
       expenses.map(e=>`<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-3 mb-2 flex items-center gap-3 cursor-pointer ${e.settled?'opacity-50':''}" onclick="openSplitExpenseModal(${e.id})">
         <div class="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center text-xl flex-shrink-0">🧾</div>
         <div class="flex-1 min-w-0"><div class="text-sm font-semibold text-gray-800">${esc(e.desc)}</div><div class="text-xs text-gray-400">${e.date} · 由 ${esc(e.paidBy)} 代墊${e.settled?' · <span class="text-green-500 font-bold">已結清</span>':''}</div></div>
-        <div class="text-sm font-black text-purple-600">${fmtAmt(e.amount,'HKD')}</div>
+        <div class="text-sm font-black text-purple-600">${fmtAmt(e.amount,e.currency||'HKD')}</div>
       </div>`).join('')}`;
 }
 
 function computeSettlement(members,expenses){
   const bal={};members.forEach(m=>bal[m]=0);
-  expenses.forEach(exp=>{
-    if(bal[exp.paidBy]!==undefined) bal[exp.paidBy]+=exp.amount;
-    if(exp.splits) exp.splits.forEach(s=>{if(bal[s.member]!==undefined) bal[s.member]-=s.amount;});
-  });
-  const cred=[],debt=[];
-  Object.entries(bal).forEach(([n,b])=>{if(b>0.005)cred.push({name:n,amount:b});else if(b<-0.005)debt.push({name:n,amount:-b});});
-  cred.sort((a,b)=>b.amount-a.amount); debt.sort((a,b)=>b.amount-a.amount);
-  const txs=[]; let ci=0,di=0;
-  while(ci<cred.length&&di<debt.length){
-    const cr=cred[ci],dt=debt[di],amt=Math.min(cr.amount,dt.amount);
-    if(amt>0.01) txs.push({from:dt.name,to:cr.name,amount:Math.round(amt*100)/100});
-    cr.amount-=amt; dt.amount-=amt;
-    if(cr.amount<=0.01)ci++; if(dt.amount<=0.01)di++;
+  // Group by currency for multi-currency support
+  const currencies=[...new Set(expenses.map(e=>e.currency||'HKD'))];
+  if(currencies.length<=1){
+    const curr=currencies[0]||'HKD';
+    expenses.forEach(exp=>{
+      if(bal[exp.paidBy]!==undefined) bal[exp.paidBy]+=exp.amount;
+      if(exp.splits) exp.splits.forEach(s=>{if(bal[s.member]!==undefined) bal[s.member]-=s.amount;});
+    });
+    const cred=[],debt=[];
+    Object.entries(bal).forEach(([n,b])=>{if(b>0.005)cred.push({name:n,amount:b});else if(b<-0.005)debt.push({name:n,amount:-b});});
+    cred.sort((a,b)=>b.amount-a.amount); debt.sort((a,b)=>b.amount-a.amount);
+    const txs=[]; let ci=0,di=0;
+    while(ci<cred.length&&di<debt.length){
+      const cr=cred[ci],dt=debt[di],amt=Math.min(cr.amount,dt.amount);
+      if(amt>0.01) txs.push({from:dt.name,to:cr.name,amount:Math.round(amt*100)/100,currency:curr});
+      cr.amount-=amt; dt.amount-=amt;
+      if(cr.amount<=0.01)ci++; if(dt.amount<=0.01)di++;
+    }
+    return txs;
   }
-  return txs;
+  // Multi-currency: compute per currency
+  const allTxs=[];
+  for(const curr of currencies){
+    const cExp=expenses.filter(e=>(e.currency||'HKD')===curr);
+    const cb={};members.forEach(m=>cb[m]=0);
+    cExp.forEach(exp=>{
+      if(cb[exp.paidBy]!==undefined) cb[exp.paidBy]+=exp.amount;
+      if(exp.splits) exp.splits.forEach(s=>{if(cb[s.member]!==undefined) cb[s.member]-=s.amount;});
+    });
+    const cred=[],debt=[];
+    Object.entries(cb).forEach(([n,b])=>{if(b>0.005)cred.push({name:n,amount:b});else if(b<-0.005)debt.push({name:n,amount:-b});});
+    cred.sort((a,b)=>b.amount-a.amount); debt.sort((a,b)=>b.amount-a.amount);
+    let ci=0,di=0;
+    while(ci<cred.length&&di<debt.length){
+      const cr=cred[ci],dt=debt[di],amt=Math.min(cr.amount,dt.amount);
+      if(amt>0.01) allTxs.push({from:dt.name,to:cr.name,amount:Math.round(amt*100)/100,currency:curr});
+      cr.amount-=amt; dt.amount-=amt;
+      if(cr.amount<=0.01)ci++; if(dt.amount<=0.01)di++;
+    }
+  }
+  return allTxs;
 }
 
 function computeMemberBalances(members,expenses){
-  const bal={};members.forEach(m=>bal[m]=0);
-  expenses.forEach(exp=>{
-    if(bal[exp.paidBy]!==undefined) bal[exp.paidBy]+=exp.amount;
-    if(exp.splits) exp.splits.forEach(s=>{if(bal[s.member]!==undefined) bal[s.member]-=s.amount;});
+  // Group by currency
+  const currencies=[...new Set(expenses.map(e=>e.currency||'HKD'))];
+  const result=members.map(m=>({name:m,byCurrency:{}}));
+  for(const curr of currencies){
+    const cExp=expenses.filter(e=>(e.currency||'HKD')===curr);
+    const bal={};members.forEach(m=>bal[m]=0);
+    cExp.forEach(exp=>{
+      if(bal[exp.paidBy]!==undefined) bal[exp.paidBy]+=exp.amount;
+      if(exp.splits) exp.splits.forEach(s=>{if(bal[s.member]!==undefined) bal[s.member]-=s.amount;});
+    });
+    result.forEach(r=>{ r.byCurrency[curr]=Math.round((bal[r.name]||0)*100)/100; });
+  }
+  // For backward-compat also set a simple .balance using first currency
+  result.forEach(r=>{
+    const vals=Object.values(r.byCurrency);
+    r.balance=vals.length>0?vals[0]:0;
   });
-  return members.map(m=>({name:m,balance:Math.round((bal[m]||0)*100)/100}));
+  return result;
 }
 
 async function settleDebt(){ toast('款項已標記結清'); renderSplit(); }
@@ -1305,12 +1433,19 @@ async function renderCountdown(){
     wrap.innerHTML=`<div class="text-center py-16 text-gray-300"><div class="text-5xl mb-3">⏳</div><div class="text-sm font-semibold">尚無倒數</div></div>`;
     return;
   }
-  cds.sort((a,b)=>a.targetDate>b.targetDate?1:-1);
-  wrap.innerHTML=cds.map(c=>{
-    const diff=dayjs(c.targetDate).diff(dayjs().startOf('day'),'day');
-    const isPast=diff<0;
-    return `
-    <div class="cd-card mb-4" onclick="openCountdownModal(${c.id})">
+  const today=dayjs().startOf('day');
+  const active=[], past=[];
+  cds.forEach(c=>{
+    const diff=dayjs(c.targetDate).diff(today,'day');
+    if(diff>=0) active.push({...c,diff});
+    else past.push({...c,diff});
+  });
+  // Sort: active ascending (soonest first), past descending (most recent past first)
+  active.sort((a,b)=>a.diff-b.diff);
+  past.sort((a,b)=>b.diff-a.diff);
+
+  const cardHtml=(c,isPast)=>`
+    <div class="cd-card mb-4 ${isPast?'opacity-60':''}" onclick="openCountdownModal(${c.id})" style="${isPast?'background:linear-gradient(135deg,#374151,#4B5563)':''}">
       <div class="flex items-center gap-4 relative z-10">
         <div class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-3xl">${c.icon||'⏳'}</div>
         <div class="flex-1">
@@ -1318,12 +1453,22 @@ async function renderCountdown(){
           <div class="text-xs text-white/50">${c.targetDate}</div>
         </div>
         <div class="text-right">
-          <div class="text-3xl font-black">${isPast?Math.abs(diff):diff}</div>
+          <div class="text-3xl font-black">${Math.abs(c.diff)}</div>
           <div class="text-[10px] font-bold uppercase opacity-50">${isPast?'天前':'DAYS LEFT'}</div>
         </div>
       </div>
     </div>`;
-  }).join('');
+
+  let html='';
+  if(active.length>0){
+    html+=`<div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">⏳ 進行中</div>`;
+    html+=active.map(c=>cardHtml(c,false)).join('');
+  }
+  if(past.length>0){
+    html+=`<div class="text-xs font-bold text-gray-400 uppercase tracking-wider mt-4 mb-3">🏁 已結束</div>`;
+    html+=past.map(c=>cardHtml(c,true)).join('');
+  }
+  wrap.innerHTML=html;
 }
 
 // ─── RENDER NOTES ─────────────────────────────────────────────────────────────
@@ -1564,14 +1709,21 @@ async function deleteTx(){
 async function openLedgerPicker(){
   const list=document.getElementById('ledger-picker-list');
   list.innerHTML=S.ledgers.map(l=>`
-    <div class="flex items-center justify-between p-3 mb-2 rounded-xl border-2 ${l.id===S.activeLedgerId?'border-amber-400 bg-amber-50':'border-gray-100 bg-white'} cursor-pointer" onclick="switchLedger(${l.id})">
-      <div class="flex items-center gap-3"><span class="text-xl">📒</span><span class="font-bold text-gray-800">${esc(l.name)}</span><span class="text-xs text-gray-400">${l.currency}</span></div>
-      ${l.id===S.activeLedgerId?'<i data-lucide="check" class="w-5 h-5 text-amber-500"></i>':''}
+    <div class="flex items-center justify-between p-3 mb-2 rounded-xl border-2 ${l.id===S.activeLedgerId?'border-amber-400 bg-amber-50':'border-gray-100 bg-white'}">
+      <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="switchLedger(${l.id})">
+        <span class="text-xl">📒</span>
+        <span class="font-bold text-gray-800">${esc(l.name)}</span>
+        <span class="text-xs text-gray-400">${l.currency}</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        ${l.id===S.activeLedgerId?'<i data-lucide="check" class="w-4 h-4 text-amber-500 mr-1"></i>':''}
+        <button onclick="event.stopPropagation();openEditLedgerModal(${l.id})" class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-amber-100 text-gray-500 hover:text-amber-700 transition-colors"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+      </div>
     </div>`).join('');
   openModal('ledger-picker-modal');
   lucide.createIcons();
 }
-function switchLedger(id){ S.activeLedgerId=id; renderLedgerHeader(); renderLedger(); closeModal('ledger-picker-modal'); }
+function switchLedger(id){ S.activeLedgerId=id; refreshCache().then(()=>{renderLedgerHeader(); renderLedger();}); closeModal('ledger-picker-modal'); }
 function openNewLedgerModal(){ document.getElementById('ledger-name-input').value=''; openModal('new-ledger-modal'); }
 async function saveLedger(){
   const n=document.getElementById('ledger-name-input').value.trim();
@@ -1581,6 +1733,41 @@ async function saveLedger(){
   S.ledgers=await db.ledgers.toArray();
   switchLedger(id);
   closeModal('new-ledger-modal');
+}
+
+function openEditLedgerModal(id){
+  S.editingLedgerId=id;
+  const l=S.ledgers.find(x=>x.id===id);
+  if(!l)return;
+  document.getElementById('edit-ledger-name-input').value=l.name;
+  document.getElementById('edit-ledger-currency-input').value=l.currency;
+  closeModal('ledger-picker-modal');
+  openModal('edit-ledger-modal');
+}
+async function saveEditLedger(){
+  const n=document.getElementById('edit-ledger-name-input').value.trim();
+  const c=document.getElementById('edit-ledger-currency-input').value;
+  if(!n)return;
+  await db.ledgers.update(S.editingLedgerId,{name:n,currency:c});
+  S.ledgers=await db.ledgers.toArray();
+  closeModal('edit-ledger-modal');
+  renderLedgerHeader();
+  if(S.activeLedgerId===S.editingLedgerId) renderLedger();
+  toast('帳本已更新 ✅');
+  openLedgerPicker();
+}
+async function deleteEditingLedger(){
+  if(S.ledgers.length<=1){toast('至少需要保留一個帳本');return;}
+  if(!confirm('確定刪除此帳本？帳本內所有交易記錄將一併刪除，且無法恢復！'))return;
+  await db.transactions.where('ledgerId').equals(S.editingLedgerId).delete();
+  await db.ledgers.delete(S.editingLedgerId);
+  S.ledgers=await db.ledgers.toArray();
+  if(S.activeLedgerId===S.editingLedgerId) S.activeLedgerId=S.ledgers[0].id;
+  closeModal('edit-ledger-modal');
+  renderLedgerHeader();
+  renderLedger();
+  toast('帳本已刪除');
+  openLedgerPicker();
 }
 
 // ─── ACCOUNT MODAL ────────────────────────────────────────────────────────────
@@ -1827,13 +2014,18 @@ async function openSplitExpenseModal(id=null){
   S.editingSplitExpId=id;
   const payerSel=document.getElementById('split-payer-input');
   payerSel.innerHTML=group.members.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
-  
+
+  // Default currency to active ledger's currency
+  const activeLedger=S.ledgers.find(l=>l.id===S.activeLedgerId);
+  const defaultCurrency=activeLedger?activeLedger.currency:'HKD';
+
   if(id){
     const e=await db.splitExpenses.get(id);
     document.getElementById('split-desc-input').value=e.desc;
     document.getElementById('split-amount-input').value=e.amount;
     document.getElementById('split-payer-input').value=e.paidBy;
     document.getElementById('split-date-input').value=e.date;
+    document.getElementById('split-currency-input').value=e.currency||defaultCurrency;
     S.splitMode=e.splits&&e.splits.length&&e.splits[0].custom?'custom':'equal';
     S.customSplits=e.splits||[];
     document.getElementById('split-del-btn').classList.remove('hidden');
@@ -1842,6 +2034,7 @@ async function openSplitExpenseModal(id=null){
     document.getElementById('split-desc-input').value='';
     document.getElementById('split-amount-input').value='';
     document.getElementById('split-date-input').value=dayjs().format('YYYY-MM-DD');
+    document.getElementById('split-currency-input').value=defaultCurrency;
     S.splitMode='equal';
     S.customSplits=[];
     document.getElementById('split-del-btn').classList.add('hidden');
@@ -1862,14 +2055,16 @@ function setSplitMode(m){
 function updateSplitRows(){
   const group=S.groups.find(g=>g.id===S.activeGroupId);
   const amt=parseFloat(document.getElementById('split-amount-input').value)||0;
+  const curr=document.getElementById('split-currency-input').value||'HKD';
+  const sym=currSym(curr);
   const wrap=document.getElementById('split-rows-wrap');
-  
+
   if(S.splitMode==='equal'){
     const each=amt/group.members.length;
     wrap.innerHTML=group.members.map(m=>`
       <div class="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
         <span class="text-sm text-gray-600">${esc(m)}</span>
-        <span class="text-sm font-bold text-gray-400">${fmtAmt(each,'HKD')}</span>
+        <span class="text-sm font-bold text-gray-400">${fmtAmt(each,curr)}</span>
       </div>`).join('');
     document.getElementById('split-sum-check').textContent='';
   } else {
@@ -1879,7 +2074,7 @@ function updateSplitRows(){
       <div class="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
         <span class="text-sm text-gray-600">${esc(m)}</span>
         <div class="flex items-center gap-1">
-          <span class="text-xs text-gray-400">HK$</span>
+          <span class="text-xs text-gray-400">${sym}</span>
           <input type="number" step="0.01" value="${cur?cur.amount:''}" oninput="onCustomSplitInp(this,'${esc(m)}')" class="w-20 text-right border-b border-gray-200 text-sm font-bold focus:border-purple-500 outline-none">
         </div>
       </div>`;
@@ -1896,21 +2091,23 @@ function onCustomSplitInp(el,m){
 }
 function checkSplitSum(){
   const amt=parseFloat(document.getElementById('split-amount-input').value)||0;
+  const curr=document.getElementById('split-currency-input').value||'HKD';
   const group=S.groups.find(g=>g.id===S.activeGroupId);
   let sum=0;
   group.members.forEach(m=>{const s=S.customSplits.find(x=>x.member===m);if(s)sum+=s.amount;});
   const diff=Math.abs(amt-sum);
   const el=document.getElementById('split-sum-check');
   if(diff<0.01){ el.textContent='✅ 金額相符'; el.className='text-[10px] text-green-500 text-right mt-1 font-bold'; }
-  else { el.textContent=`❌ 尚差 HK$${(amt-sum).toFixed(2)}`; el.className='text-[10px] text-red-500 text-right mt-1 font-bold'; }
+  else { el.textContent=`❌ 尚差 ${currSym(curr)}${(amt-sum).toFixed(2)}`; el.className='text-[10px] text-red-500 text-right mt-1 font-bold'; }
 }
 async function saveSplitExpense(){
   const desc=document.getElementById('split-desc-input').value.trim();
   const amt=parseFloat(document.getElementById('split-amount-input').value)||0;
   const paidBy=document.getElementById('split-payer-input').value;
   const date=document.getElementById('split-date-input').value;
+  const currency=document.getElementById('split-currency-input').value||'HKD';
   if(!desc||amt<=0)return;
-  
+
   const group=S.groups.find(g=>g.id===S.activeGroupId);
   let splits=[];
   if(S.splitMode==='equal'){
@@ -1921,8 +2118,8 @@ async function saveSplitExpense(){
     const sum=splits.reduce((s,x)=>s+x.amount,0);
     if(Math.abs(sum-amt)>0.02){toast('自訂金額總和與總價不符');return;}
   }
-  
-  const data={groupId:S.activeGroupId,desc,amount:amt,paidBy,date,splits,settled:false};
+
+  const data={groupId:S.activeGroupId,desc,amount:amt,currency,paidBy,date,splits,settled:false};
   if(S.editingSplitExpId) await db.splitExpenses.update(S.editingSplitExpId,data);
   else await db.splitExpenses.add(data);
   closeModal('split-expense-modal');
@@ -1935,15 +2132,22 @@ function openHabitModal(id=null){
   S.editingHabitId=id;
   const iconGrid=document.getElementById('habit-icon-grid');
   iconGrid.innerHTML=HABIT_ICONS.map(i=>`<div class="w-10 h-10 rounded-xl border-2 flex items-center justify-center text-xl cursor-pointer ${S.selectedHabitIcon===i?'border-amber-400 bg-amber-50':'border-gray-100'}" onclick="selectHabitIcon('${i}')">${i}</div>`).join('');
-  
+
   const swatchWrap=document.getElementById('habit-color-swatches');
   swatchWrap.innerHTML=PALETTE.map(c=>`<div class="swatch ${S.selectedHabitColor===c?'selected':''}" style="background:${c}" onclick="selectHabitColor('${c}')"></div>`).join('');
-  
+
   const delBtn=document.getElementById('habit-del-btn');
+  document.getElementById('habit-custom-icon-input').value='';
   if(id){
     db.habits.get(id).then(h=>{
       document.getElementById('habit-name-input').value=h.name;
-      selectHabitIcon(h.icon);
+      // If icon is not in preset list, treat it as custom
+      if(HABIT_ICONS.includes(h.icon)){
+        selectHabitIcon(h.icon);
+      } else {
+        selectHabitIcon(HABIT_ICONS[0]);
+        document.getElementById('habit-custom-icon-input').value=h.icon||'';
+      }
       selectHabitColor(h.color);
       document.getElementById('habit-modal-title').textContent='編輯習慣';
       delBtn.classList.remove('hidden');
@@ -1957,12 +2161,34 @@ function openHabitModal(id=null){
   }
   openModal('habit-modal');
 }
-function selectHabitIcon(i){ S.selectedHabitIcon=i; document.querySelectorAll('#habit-icon-grid div').forEach(el=>el.classList.toggle('border-amber-400',el.textContent===i)); document.querySelectorAll('#habit-icon-grid div').forEach(el=>el.classList.toggle('bg-amber-50',el.textContent===i)); }
+function onHabitCustomIconInput(v){
+  // When user types in the custom field, visually deselect preset icons if value is present
+  if(v.trim()){
+    document.querySelectorAll('#habit-icon-grid div').forEach(el=>{
+      el.classList.remove('border-amber-400','bg-amber-50');
+      el.classList.add('border-gray-100');
+    });
+  }
+}
+function selectHabitIcon(i){
+  S.selectedHabitIcon=i;
+  document.querySelectorAll('#habit-icon-grid div').forEach(el=>{
+    const active=el.textContent.trim()===i;
+    el.classList.toggle('border-amber-400',active);
+    el.classList.toggle('bg-amber-50',active);
+    el.classList.toggle('border-gray-100',!active);
+  });
+  // Clear custom input when a preset is selected
+  const customInput=document.getElementById('habit-custom-icon-input');
+  if(customInput) customInput.value='';
+}
 function selectHabitColor(c){ S.selectedHabitColor=c; document.querySelectorAll('#habit-color-swatches .swatch').forEach(el=>el.classList.toggle('selected',el.style.backgroundColor===c||rgbToHex(el.style.backgroundColor)===c.toLowerCase())); }
 async function saveHabit(){
   const n=document.getElementById('habit-name-input').value.trim();
   if(!n)return;
-  const data={name:n,icon:S.selectedHabitIcon,color:S.selectedHabitColor};
+  const customIcon=document.getElementById('habit-custom-icon-input').value.trim();
+  const icon=customIcon||S.selectedHabitIcon;
+  const data={name:n,icon,color:S.selectedHabitColor};
   if(S.editingHabitId) await db.habits.update(S.editingHabitId,data);
   else { data.logs=[]; await db.habits.add(data); }
   closeModal('habit-modal');
