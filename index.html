@@ -540,10 +540,18 @@ input[type=number]{ -moz-appearance:textfield; }
     </div>
     <div class="p-5 space-y-4">
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">帳戶名稱</label><input id="acc-name-input" type="text" placeholder="例如：八達通" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
+      <div>
+        <label class="block text-xs font-bold text-gray-500 mb-1.5">貨幣</label>
+        <select id="acc-currency-input" onchange="updateAccBalancePrefix()" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white">
+          <option value="HKD">🇭🇰 HKD — 港幣</option><option value="USD">🇺🇸 USD — 美元</option><option value="JPY">🇯🇵 JPY — 日圓</option>
+          <option value="CNY">🇨🇳 CNY — 人民幣</option><option value="TWD">🇹🇼 TWD — 台幣</option><option value="GBP">🇬🇧 GBP — 英鎊</option>
+          <option value="EUR">🇪🇺 EUR — 歐元</option><option value="KRW">🇰🇷 KRW — 韓圜</option><option value="AUD">🇦🇺 AUD — 澳元</option><option value="SGD">🇸🇬 SGD — 新加坡元</option>
+        </select>
+      </div>
       <div><label class="block text-xs font-bold text-gray-500 mb-2">圖示</label><div class="grid grid-cols-6 gap-2" id="acc-icon-grid"></div></div>
       <div>
         <label class="block text-xs font-bold text-gray-500 mb-1.5">初始餘額</label>
-        <div class="relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">HK$</span><input id="acc-balance-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" class="w-full pl-12 pr-4 py-2.5 text-sm font-bold border-2 border-gray-200 rounded-xl inp-amber"></div>
+        <div class="relative"><span id="acc-balance-prefix" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">HK$</span><input id="acc-balance-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" class="w-full pl-12 pr-4 py-2.5 text-sm font-bold border-2 border-gray-200 rounded-xl inp-amber"></div>
       </div>
       <div class="flex gap-3">
         <button id="acc-del-btn" onclick="deleteAccount()" class="hidden flex-none px-4 py-3 rounded-xl bg-red-50 text-red-500 font-bold text-sm">🗑️</button>
@@ -856,6 +864,13 @@ db.version(2).stores({
     if(t.sortOrder===undefined) t.sortOrder=t.id;
   });
 });
+db.version(3).stores({
+  accounts:'++id,name,icon,balance,currency',
+}).upgrade(tx=>{
+  return tx.table('accounts').toCollection().modify(a=>{
+    if(!a.currency) a.currency='HKD';
+  });
+});
 
 // ─── DEFAULT DATA ─────────────────────────────────────────────────────────────
 const DEFAULT_EXPENSE_CATS=[
@@ -1033,8 +1048,8 @@ async function renderLedger(){
   document.getElementById('hero-balance').className=`text-3xl font-black tracking-tight ${balance>=0?'text-green-300':'text-red-300'}`;
   document.getElementById('hero-income').textContent='+'+fmtAmt(income,curr);
   document.getElementById('hero-expense').textContent='-'+fmtAmt(expense,curr);
-  const net=S.accounts.reduce((s,a)=>s+(a.balance||0),0);
-  document.getElementById('hero-net').textContent=(net<0?'-':'')+fmtAmt(Math.abs(net),'HKD');
+  const net=S.accounts.filter(a=>(a.currency||'HKD')===curr).reduce((s,a)=>s+(a.balance||0),0);
+  document.getElementById('hero-net').textContent=(net<0?'-':'')+fmtAmt(Math.abs(net),curr);
   document.getElementById('hero-net').className=`text-sm font-bold ${net<0?'text-red-300':'text-amber-300'}`;
 
   const budget=parseFloat(S.settings&&S.settings.budget)||0;
@@ -1048,11 +1063,17 @@ async function renderLedger(){
     bar.className=`h-full rounded-full transition-all duration-500 ${pct>=90?'bg-red-400':pct>=70?'bg-amber-300':'bg-green-400'}`;
   } else bw.classList.add('hidden');
 
-  // Account chips
-  document.getElementById('account-chips-wrap').innerHTML=S.accounts.map(a=>`
+  // Account chips — only show accounts matching this ledger's currency
+  const matchingAccs=S.accounts.filter(a=>(a.currency||'HKD')===curr);
+  document.getElementById('account-chips-wrap').innerHTML=matchingAccs.length===0
+    ?`<div class="text-xs text-gray-400 italic py-2">此帳本（${curr}）尚無對應帳戶</div>`
+    :matchingAccs.map(a=>`
     <div class="flex-shrink-0 bg-white rounded-xl border border-gray-200 px-3 py-2 flex items-center gap-2 shadow-sm">
       <span class="text-base">${a.icon}</span>
-      <div><div class="text-xs text-gray-400 font-semibold leading-tight">${esc(a.name)}</div><div class="text-sm font-black ${(a.balance||0)<0?'text-red-500':'text-gray-800'}">${(a.balance||0)<0?'-':''}${fmtAmt(Math.abs(a.balance||0),'HKD')}</div></div>
+      <div>
+        <div class="text-xs text-gray-400 font-semibold leading-tight">${esc(a.name)}</div>
+        <div class="text-sm font-black ${(a.balance||0)<0?'text-red-500':'text-gray-800'}">${(a.balance||0)<0?'-':''}${fmtAmt(Math.abs(a.balance||0),curr)}</div>
+      </div>
     </div>`).join('');
 
   let filtered=txs;
@@ -1621,12 +1642,18 @@ async function renderSettings(){
   const budget=parseFloat(S.settings.budget)||0;
   document.getElementById('budget-setting-display').textContent=budget>0?fmtAmt(budget,'HKD'):'未設定';
   
-  // Accounts in settings
-  document.getElementById('settings-accounts').innerHTML=S.accounts.map(a=>`
+  // Accounts in settings — grouped by currency
+  const accByCurr={};
+  S.accounts.forEach(a=>{const c=a.currency||'HKD'; if(!accByCurr[c])accByCurr[c]=[]; accByCurr[c].push(a);});
+  document.getElementById('settings-accounts').innerHTML=Object.entries(accByCurr).map(([c,accs])=>`
+    <div class="px-4 py-1.5 bg-gray-50 border-b border-gray-100">
+      <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">${c} ${currSym(c)}</span>
+    </div>
+    ${accs.map(a=>`
     <div class="px-4 py-3.5 flex items-center justify-between hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0" onclick="openAccountModal(${a.id})">
       <div class="flex items-center gap-3"><span class="text-xl">${a.icon}</span><span class="text-sm font-semibold text-gray-800">${esc(a.name)}</span></div>
-      <div class="flex items-center gap-2"><span class="text-sm font-bold ${(a.balance||0)<0?'text-red-500':'text-gray-700'}">${(a.balance||0)<0?'-':''}${fmtAmt(Math.abs(a.balance||0),'HKD')}</span><i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i></div>
-    </div>`).join('');
+      <div class="flex items-center gap-2"><span class="text-sm font-bold ${(a.balance||0)<0?'text-red-500':'text-gray-700'}">${(a.balance||0)<0?'-':''}${fmtAmt(Math.abs(a.balance||0),c)}</span><i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i></div>
+    </div>`).join('')}`).join('')||'<div class="px-4 py-3 text-sm text-gray-400">尚無帳戶</div>';
   
   await renderCatList();
   lucide.createIcons();
@@ -1706,7 +1733,12 @@ function selectTxCat(emoji){
 }
 
 function renderTxAccountSelect(){
-  const html=S.accounts.map(a=>`<option value="${a.id}">${a.icon} ${esc(a.name)}</option>`).join('');
+  const l=S.ledgers.find(x=>x.id===S.activeLedgerId);
+  const curr=l?l.currency:'HKD';
+  const matching=S.accounts.filter(a=>(a.currency||'HKD')===curr);
+  const html=matching.length>0
+    ? matching.map(a=>`<option value="${a.id}">${a.icon} ${esc(a.name)}</option>`).join('')
+    : `<option value="">（無 ${curr} 帳戶，請先新增）</option>`;
   document.getElementById('tx-account').innerHTML=html;
   document.getElementById('tx-to-account').innerHTML=html;
 }
@@ -1890,6 +1922,10 @@ async function deleteEditingLedger(){
 }
 
 // ─── ACCOUNT MODAL ────────────────────────────────────────────────────────────
+function updateAccBalancePrefix(){
+  const c=document.getElementById('acc-currency-input').value||'HKD';
+  document.getElementById('acc-balance-prefix').textContent=currSym(c);
+}
 function openAccountModal(id=null){
   S.editingAccId=id;
   const grid=document.getElementById('acc-icon-grid');
@@ -1900,16 +1936,21 @@ function openAccountModal(id=null){
     const a=S.accounts.find(x=>x.id===id);
     document.getElementById('acc-name-input').value=a.name;
     document.getElementById('acc-balance-input').value=a.balance;
+    document.getElementById('acc-currency-input').value=a.currency||'HKD';
     selectAccIcon(a.icon);
     document.getElementById('account-modal-title').textContent='編輯帳戶';
     delBtn.classList.remove('hidden');
   } else {
     document.getElementById('acc-name-input').value='';
     document.getElementById('acc-balance-input').value='';
+    // Default new account currency to active ledger's currency
+    const activeLedger=S.ledgers.find(l=>l.id===S.activeLedgerId);
+    document.getElementById('acc-currency-input').value=activeLedger?activeLedger.currency:'HKD';
     selectAccIcon(ACC_ICONS[0]);
     document.getElementById('account-modal-title').textContent='新增帳戶';
     delBtn.classList.add('hidden');
   }
+  updateAccBalancePrefix();
   openModal('account-modal');
 }
 function selectAccIcon(i){
@@ -1920,8 +1961,9 @@ function selectAccIcon(i){
 async function saveAccount(){
   const name=document.getElementById('acc-name-input').value.trim();
   const bal=parseFloat(document.getElementById('acc-balance-input').value)||0;
+  const currency=document.getElementById('acc-currency-input').value||'HKD';
   if(!name)return;
-  const data={name,icon:S.selectedAccIcon,balance:bal};
+  const data={name,icon:S.selectedAccIcon,balance:bal,currency};
   if(S.editingAccId) await db.accounts.update(S.editingAccId,data);
   else await db.accounts.add(data);
   S.accounts=await db.accounts.toArray();
