@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -151,6 +152,18 @@ input[type=number]{ -moz-appearance:textfield; }
 .tx-item.dragging{ opacity:.4; }
 .tx-item.drag-over{ border-top:2.5px solid #FBBF24; }
 
+/* Cat drag-to-reorder */
+.cat-drag-handle{ cursor:grab; color:#9CA3AF; font-size:14px; padding:0 6px; user-select:none; flex-shrink:0; }
+.cat-drag-handle:active{ cursor:grabbing; }
+.cat-row.dragging{ opacity:.4; background:#FFFBEB; }
+.cat-row.drag-over{ border-top:2px solid #FBBF24; }
+
+/* Account drag-to-reorder */
+.acc-drag-handle{ cursor:grab; color:#9CA3AF; font-size:14px; padding:0 6px; user-select:none; flex-shrink:0; }
+.acc-drag-handle:active{ cursor:grabbing; }
+.acc-row.dragging{ opacity:.4; background:#FFFBEB; }
+.acc-row.drag-over{ border-top:2px solid #FBBF24; }
+
 /* Countdown dynamic gradients */
 .cd-far  { background:linear-gradient(135deg,#064E3B,#065F46) !important; }
 .cd-mid  { background:linear-gradient(135deg,#78350F,#92400E) !important; }
@@ -160,6 +173,14 @@ input[type=number]{ -moz-appearance:textfield; }
 /* Habit weekly progress */
 .habit-prog-bg{ height:5px; border-radius:3px; background:#F3F4F6; margin-top:5px; overflow:hidden; }
 .habit-prog-fill{ height:100%; border-radius:3px; transition:width .5s ease; }
+
+/* Calendar detail panel */
+.cal-todo-row{ display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid #F9FAFB; }
+.cal-todo-row:last-child{ border-bottom:none; }
+.cal-check{ width:20px; height:20px; border-radius:50%; border:2px solid #D1D5DB; flex-shrink:0; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; margin-top:1px; }
+.cal-check.done{ background:#10B981; border-color:#10B981; }
+.cal-cd-row{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #F9FAFB; }
+.cal-cd-row:last-child{ border-bottom:none; }
 </style>
 </head>
 <body class="bg-amber-50">
@@ -323,14 +344,15 @@ input[type=number]{ -moz-appearance:textfield; }
 
     <!-- ─── CALENDAR PAGE ─── -->
     <div id="page-calendar" class="page h-full flex-col">
-      <div class="bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-1 flex-shrink-0">
+      <div class="bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 flex-shrink-0">
         <button onclick="calChangeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
         <span id="cal-month-label" class="text-sm font-bold text-gray-700 flex-1 text-center"></span>
         <button onclick="calChangeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+        <button id="cal-add-btn" onclick="calAddTodo()" class="hidden w-8 h-8 flex items-center justify-center rounded-lg bg-amber-400 text-gray-900 ml-1" title="在此日新增待辦"><i data-lucide="plus" class="w-4 h-4"></i></button>
       </div>
-      <div class="flex-1 panel-scroll pb-24">
+      <div class="flex-1 panel-scroll pb-6">
         <div id="cal-grid-wrap" class="px-3 pt-2"></div>
-        <div id="cal-detail-wrap" class="px-4 pb-4"></div>
+        <div id="cal-detail-wrap" class="px-4 pb-6"></div>
       </div>
     </div>
 
@@ -641,7 +663,23 @@ input[type=number]{ -moz-appearance:textfield; }
         <div><label class="block text-xs font-bold text-gray-500 mb-1.5">優先級</label><select id="todo-pri-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"><option value="high">🔴 高</option><option value="med" selected>🟡 中</option><option value="low">🟢 低</option></select></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-1.5">所屬清單</label><select id="todo-list-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select></div>
       </div>
-      <div><label class="block text-xs font-bold text-gray-500 mb-1.5">截止時間（選填）</label><input id="todo-due-input" type="datetime-local" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
+      <div>
+        <label class="block text-xs font-bold text-gray-500 mb-1.5">截止日期與時間（選填）</label>
+        <div class="flex items-center gap-1.5">
+          <input id="todo-due-year" type="number" min="2000" max="9999" maxlength="4" placeholder="YYYY"
+            class="w-20 border-2 border-gray-200 rounded-xl px-2 py-2.5 text-sm font-semibold inp-amber text-center"
+            oninput="todoDueYearInput(this)">
+          <span class="text-gray-400 font-bold">/</span>
+          <input id="todo-due-md" type="text" maxlength="5" placeholder="MM/DD"
+            class="w-20 border-2 border-gray-200 rounded-xl px-2 py-2.5 text-sm font-semibold inp-amber text-center"
+            oninput="todoDueMdInput(this)" onkeydown="todoDueMdKey(event,this)">
+          <input id="todo-due-time" type="text" maxlength="5" placeholder="HH:MM"
+            class="w-20 border-2 border-gray-200 rounded-xl px-2 py-2.5 text-sm font-semibold inp-amber text-center"
+            oninput="todoDueTimeInput(this)">
+          <button onclick="clearTodoDue()" class="text-gray-300 hover:text-gray-500 text-lg leading-none" title="清除">✕</button>
+        </div>
+        <p class="text-[10px] text-gray-400 mt-1">年份滿 4 位自動跳至月日，時間請輸入 00:00–23:59</p>
+      </div>
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">備註</label><textarea id="todo-note-input" rows="2" placeholder="選填備註..." class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm inp-amber resize-none"></textarea></div>
       <div class="flex gap-3">
         <button id="todo-del-btn" onclick="deleteTodo()" class="hidden flex-none px-4 py-3 rounded-xl bg-red-50 text-red-500 font-bold text-sm">🗑️</button>
@@ -903,6 +941,20 @@ db.version(3).stores({
     if(!a.currency) a.currency='HKD';
   });
 });
+db.version(4).stores({
+  categories:'++id,type,emoji,label,color,sortOrder',
+}).upgrade(tx=>{
+  return tx.table('categories').toCollection().modify(c=>{
+    if(c.sortOrder===undefined) c.sortOrder=c.id;
+  });
+});
+db.version(5).stores({
+  accounts:'++id,name,icon,balance,currency,sortOrder',
+}).upgrade(tx=>{
+  return tx.table('accounts').toCollection().modify(a=>{
+    if(a.sortOrder===undefined) a.sortOrder=a.id;
+  });
+});
 
 // ─── DEFAULT DATA ─────────────────────────────────────────────────────────────
 const DEFAULT_EXPENSE_CATS=[
@@ -1100,7 +1152,9 @@ async function renderLedger(){
   } else bw.classList.add('hidden');
 
   // Account chips — only show accounts matching this ledger's currency
-  const matchingAccs=S.accounts.filter(a=>(a.currency||'HKD')===curr);
+  const matchingAccs=S.accounts
+    .filter(a=>(a.currency||'HKD')===curr)
+    .slice().sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id));
   document.getElementById('account-chips-wrap').innerHTML=matchingAccs.length===0
     ?`<div class="text-xs text-gray-400 italic py-2">此帳本（${curr}）尚無對應帳戶</div>`
     :matchingAccs.map(a=>`
@@ -1383,7 +1437,15 @@ async function renderTodo(){
 }
 
 async function toggleTodo(id){const t=await db.todos.get(id);await db.todos.update(id,{done:!t.done});renderTodo();if(!t.done)toast('✅ 已完成！');}
-async function deleteTodo(){if(!S.editingTodoId)return;if(!confirm('確定刪除此任務？'))return;await db.todos.delete(S.editingTodoId);closeModal('todo-modal');toast('任務已刪除');renderTodo();}
+async function deleteTodo(){
+  if(!S.editingTodoId)return;
+  if(!confirm('確定刪除此任務？'))return;
+  await db.todos.delete(S.editingTodoId);
+  closeModal('todo-modal');
+  toast('任務已刪除');
+  if(S.page==='calendar') await renderCalendar();
+  else renderTodo();
+}
 
 // ─── RENDER SPLIT ─────────────────────────────────────────────────────────────
 async function renderSplit(){
@@ -1524,8 +1586,6 @@ async function importSettlementToLedger(){
 }
 
 // ─── CALENDAR ─────────────────────────────────────────────────────────────────
-if(!S.calMonth) S.calMonth=dayjs().format('YYYY-MM');
-
 function calChangeMonth(d){
   S.calMonth=dayjs(S.calMonth+'-01').add(d,'month').format('YYYY-MM');
   S.calSelectedDate=null;
@@ -1536,23 +1596,23 @@ async function renderCalendar(){
   if(!S.calMonth) S.calMonth=dayjs().format('YYYY-MM');
   document.getElementById('cal-month-label').textContent=dayjs(S.calMonth+'-01').format('YYYY年M月');
 
-  // Gather all todos and countdowns
   const todos=await db.todos.toArray();
   const cds=await db.countdowns.toArray();
 
-  // Build date→items map
-  const dateMap={}; // date string → [{type,label,emoji}]
+  // Build dateMap: date → [{type, label, emoji, id, done?, dueAt?, priority?}]
+  const dateMap={};
+  function addItem(date, item){
+    if(!date) return;
+    if(!dateMap[date]) dateMap[date]=[];
+    dateMap[date].push(item);
+  }
   todos.forEach(t=>{
     if(!t.dueAt) return;
     const d=dayjs(t.dueAt).format('YYYY-MM-DD');
-    if(!dateMap[d]) dateMap[d]=[];
-    dateMap[d].push({type:'todo',label:t.title,done:t.done,id:t.id,emoji:t.done?'✅':'📌'});
+    addItem(d,{type:'todo',id:t.id,label:t.title,done:t.done,dueAt:t.dueAt,priority:t.priority,note:t.note||''});
   });
   cds.forEach(c=>{
-    if(!c.targetDate) return;
-    const d=c.targetDate;
-    if(!dateMap[d]) dateMap[d]=[];
-    dateMap[d].push({type:'cd',label:c.name,id:c.id,emoji:c.icon||'⏳'});
+    addItem(c.targetDate,{type:'cd',id:c.id,label:c.name,emoji:c.icon||'⏳',targetDate:c.targetDate});
   });
 
   const today=dayjs().format('YYYY-MM-DD');
@@ -1560,56 +1620,54 @@ async function renderCalendar(){
   const daysInMonth=monthStart.daysInMonth();
   const startDow=monthStart.day(); // 0=Sun
 
-  // Header row Sun–Sat
-  const dowLabels=['日','一','二','三','四','五','六'];
-  let html=`<div class="grid grid-cols-7 mb-1">
-    ${dowLabels.map(l=>`<div class="text-center text-[10px] font-bold text-gray-400 py-1">${l}</div>`).join('')}
-  </div>`;
+  // Show/hide cal-add-btn
+  const addBtn=document.getElementById('cal-add-btn');
+  if(S.calSelectedDate){ addBtn.classList.remove('hidden'); addBtn.classList.add('flex'); }
+  else { addBtn.classList.add('hidden'); addBtn.classList.remove('flex'); }
 
-  // Calendar grid
+  const dowLabels=['日','一','二','三','四','五','六'];
+  let html=`<div class="grid grid-cols-7 mb-1">${dowLabels.map(l=>`<div class="text-center text-[10px] font-bold text-gray-400 py-1">${l}</div>`).join('')}</div>`;
   html+='<div class="grid grid-cols-7 gap-px bg-gray-100 rounded-2xl overflow-hidden border border-gray-100">';
 
-  // Leading empty cells
-  for(let i=0;i<startDow;i++){
-    html+=`<div class="bg-white min-h-[52px] p-1"></div>`;
-  }
+  for(let i=0;i<startDow;i++) html+=`<div class="bg-white min-h-[52px] p-1"></div>`;
 
   for(let day=1;day<=daysInMonth;day++){
     const dateStr=monthStart.date(day).format('YYYY-MM-DD');
     const isToday=dateStr===today;
     const isSelected=dateStr===S.calSelectedDate;
     const items=dateMap[dateStr]||[];
-    const hasTodo=items.some(x=>x.type==='todo');
+    const activeTodos=items.filter(x=>x.type==='todo'&&!x.done);
+    const doneTodos=items.filter(x=>x.type==='todo'&&x.done);
     const hasCd=items.some(x=>x.type==='cd');
+    const isOverdue=!isToday&&dateStr<today&&activeTodos.length>0;
 
-    html+=`<div class="bg-white min-h-[52px] p-1.5 cursor-pointer active:bg-amber-50 transition-colors relative ${isSelected?'ring-2 ring-inset ring-amber-400':''}" onclick="calSelectDate('${dateStr}')">
+    html+=`<div class="bg-white min-h-[52px] p-1.5 cursor-pointer transition-colors ${isSelected?'bg-amber-50 ring-2 ring-inset ring-amber-400':isOverdue?'bg-red-50':'hover:bg-gray-50'}" onclick="calSelectDate('${dateStr}')">
       <div class="flex justify-center mb-1">
-        <span class="text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday?'bg-amber-400 text-white':isSelected?'text-amber-600':'text-gray-600'}">${day}</span>
+        <span class="text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full
+          ${isToday?'bg-amber-400 text-white':isSelected?'bg-amber-100 text-amber-700':isOverdue?'text-red-500':'text-gray-600'}">${day}</span>
       </div>
       <div class="flex flex-wrap gap-px justify-center">
-        ${hasTodo?`<span class="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0"></span>`:''}
+        ${activeTodos.length>0?`<span class="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0"></span>`:''}
+        ${doneTodos.length>0?`<span class="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0"></span>`:''}
         ${hasCd?`<span class="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0"></span>`:''}
       </div>
-      ${items.length>0?`<div class="text-[8px] text-gray-400 text-center leading-tight mt-0.5 truncate">${items.length}項</div>`:''}
+      ${items.length>0?`<div class="text-[8px] text-center leading-tight mt-0.5 ${isOverdue?'text-red-400':'text-gray-400'} truncate">${items.length}項</div>`:''}
     </div>`;
   }
 
-  // Trailing empty cells to complete the grid
   const totalCells=startDow+daysInMonth;
   const trailing=(7-totalCells%7)%7;
   for(let i=0;i<trailing;i++) html+=`<div class="bg-white min-h-[52px] p-1"></div>`;
   html+='</div>';
 
-  // Legend
-  html+=`<div class="flex gap-4 justify-center mt-3 mb-2">
-    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-400"></span><span class="text-[10px] text-gray-400 font-semibold">待辦事項</span></div>
-    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-400"></span><span class="text-[10px] text-gray-400 font-semibold">倒數截止</span></div>
+  html+=`<div class="flex gap-4 justify-center mt-3 mb-1">
+    <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-400"></span><span class="text-[10px] text-gray-400">待辦</span></div>
+    <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-400"></span><span class="text-[10px] text-gray-400">已完成</span></div>
+    <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-400"></span><span class="text-[10px] text-gray-400">倒數截止</span></div>
   </div>`;
 
   document.getElementById('cal-grid-wrap').innerHTML=html;
-
-  // Detail panel
-  renderCalDetail(dateMap);
+  await renderCalDetail(dateMap);
   lucide.createIcons();
 }
 
@@ -1618,29 +1676,112 @@ function calSelectDate(d){
   renderCalendar();
 }
 
+function calAddTodo(){
+  if(!S.calSelectedDate) return;
+  // Pre-fill the due date fields with the selected date at 23:59
+  openTodoModal();
+  // Override date fields after modal opens
+  requestAnimationFrame(()=>{
+    document.getElementById('todo-due-year').value=dayjs(S.calSelectedDate).format('YYYY');
+    document.getElementById('todo-due-md').value=dayjs(S.calSelectedDate).format('MM/DD');
+    document.getElementById('todo-due-time').value='23:59';
+  });
+}
+
 async function renderCalDetail(dateMap){
   const wrap=document.getElementById('cal-detail-wrap');
   if(!S.calSelectedDate){
-    wrap.innerHTML='<div class="text-center text-xs text-gray-300 py-4">點擊日期查看詳情</div>';
+    wrap.innerHTML=`<div class="text-center text-xs text-gray-300 py-6">
+      <div class="text-3xl mb-2">📅</div>點擊日期查看或新增事項
+    </div>`;
     return;
   }
+
   const items=dateMap[S.calSelectedDate]||[];
-  const label=dayjs(S.calSelectedDate).format('M月D日 dddd');
-  if(items.length===0){
-    wrap.innerHTML=`<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mt-2 text-center text-sm text-gray-400">${label}・無事項</div>`;
-    return;
-  }
-  wrap.innerHTML=`<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mt-2">
-    <div class="text-xs font-bold text-gray-500 mb-3">${label}</div>
-    ${items.map(it=>`
-    <div class="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0 cursor-pointer" onclick="${it.type==='todo'?'closeModal();openTodoModal('+it.id+')':'openCountdownModal('+it.id+')'}">
-      <span class="text-lg flex-shrink-0">${it.emoji}</span>
-      <div class="flex-1 min-w-0">
-        <div class="text-sm font-semibold text-gray-800 ${it.done?'line-through text-gray-400':''}">${esc(it.label)}</div>
-        <div class="text-[10px] text-gray-400 mt-0.5">${it.type==='todo'?'📌 待辦事項':'⏳ 倒數截止'}</div>
+  const d=dayjs(S.calSelectedDate);
+  const isToday=S.calSelectedDate===dayjs().format('YYYY-MM-DD');
+  const isPast=S.calSelectedDate<dayjs().format('YYYY-MM-DD');
+  const label=d.format('M月D日')+'（'+['日','一','二','三','四','五','六'][d.day()]+'）'+(isToday?' · 今天':'');
+
+  const todos=items.filter(x=>x.type==='todo');
+  const cds=items.filter(x=>x.type==='cd');
+  const activeTodos=todos.filter(x=>!x.done);
+  const doneTodos=todos.filter(x=>x.done);
+
+  const priColors={high:'text-red-500',med:'text-amber-500',low:'text-green-500'};
+  const priLabels={high:'高',med:'中',low:'低'};
+
+  const todoRow=(t)=>`
+    <div class="cal-todo-row" id="cal-todo-${t.id}">
+      <div class="cal-check ${t.done?'done':''}" onclick="calToggleTodo(${t.id})" title="${t.done?'標記未完成':'標記完成'}">
+        ${t.done?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}
       </div>
-    </div>`).join('')}
-  </div>`;
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-semibold ${t.done?'line-through text-gray-400':'text-gray-800'} leading-snug">${esc(t.label)}</div>
+        <div class="flex items-center gap-2 mt-0.5">
+          ${t.priority?`<span class="text-[10px] font-bold ${priColors[t.priority]||''}">● ${priLabels[t.priority]||''}</span>`:''}
+          ${t.dueAt?`<span class="text-[10px] text-gray-400">${dayjs(t.dueAt).format('HH:mm')}</span>`:''}
+          ${t.note?`<span class="text-[10px] text-gray-400 truncate max-w-[120px]">${esc(t.note)}</span>`:''}
+        </div>
+      </div>
+      <button onclick="openTodoModal(${t.id})" class="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-300 hover:text-amber-500 hover:bg-amber-50 transition-colors text-sm">✏️</button>
+    </div>`;
+
+  let html=`<div class="bg-white rounded-2xl border border-gray-100 shadow-sm mt-3 overflow-hidden">
+    <!-- Header -->
+    <div class="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+      <div class="text-sm font-black text-gray-800">${label}</div>
+      <button onclick="calAddTodo()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-400 text-gray-900 font-bold text-xs hover:bg-amber-500 transition-colors">
+        <i data-lucide="plus" class="w-3 h-3"></i> 新增待辦
+      </button>
+    </div>`;
+
+  if(todos.length===0&&cds.length===0){
+    html+=`<div class="px-4 py-6 text-center text-sm text-gray-400">
+      此日暫無事項<br><span class="text-xs text-gray-300">點擊「新增待辦」建立任務</span>
+    </div>`;
+  } else {
+    if(activeTodos.length>0){
+      html+=`<div class="px-4 pt-3 pb-1">
+        <div class="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">📌 待辦 (${activeTodos.length})</div>
+        ${activeTodos.map(todoRow).join('')}
+      </div>`;
+    }
+    if(cds.length>0){
+      html+=`<div class="px-4 pt-3 pb-1 ${activeTodos.length>0?'border-t border-gray-50':''}">
+        <div class="text-[10px] font-bold text-orange-400 uppercase tracking-wider mb-1">⏳ 倒數截止 (${cds.length})</div>
+        ${cds.map(c=>{
+          const diff=dayjs(c.targetDate).diff(dayjs().startOf('day'),'day');
+          const diffStr=diff>0?`還有 ${diff} 天`:diff===0?'今天截止':`已過 ${Math.abs(diff)} 天`;
+          return `<div class="cal-cd-row cursor-pointer" onclick="openCountdownModal(${c.id})">
+            <span class="text-xl flex-shrink-0">${c.emoji}</span>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-semibold text-gray-800">${esc(c.label)}</div>
+              <div class="text-[10px] ${diff<0?'text-red-400':diff===0?'text-orange-500':'text-gray-400'} mt-0.5">${diffStr}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+    if(doneTodos.length>0){
+      html+=`<div class="px-4 pt-3 pb-1 ${(activeTodos.length>0||cds.length>0)?'border-t border-gray-50':''}">
+        <div class="text-[10px] font-bold text-green-400 uppercase tracking-wider mb-1">✅ 已完成 (${doneTodos.length})</div>
+        ${doneTodos.map(todoRow).join('')}
+      </div>`;
+    }
+  }
+
+  html+='</div>';
+  wrap.innerHTML=html;
+  lucide.createIcons();
+}
+
+async function calToggleTodo(id){
+  const t=await db.todos.get(id); if(!t) return;
+  await db.todos.update(id,{done:!t.done});
+  toast(t.done?'已標記為未完成':'✅ 已完成！');
+  // Re-render calendar (updates dots) but keep selected date
+  renderCalendar();
 }
 
 
@@ -1799,15 +1940,29 @@ async function renderSettings(){
   
   // Accounts in settings — grouped by currency
   const accByCurr={};
-  S.accounts.forEach(a=>{const c=a.currency||'HKD'; if(!accByCurr[c])accByCurr[c]=[]; accByCurr[c].push(a);});
+  S.accounts
+    .slice().sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id))
+    .forEach(a=>{const c=a.currency||'HKD'; if(!accByCurr[c])accByCurr[c]=[]; accByCurr[c].push(a);});
   document.getElementById('settings-accounts').innerHTML=Object.entries(accByCurr).map(([c,accs])=>`
     <div class="px-4 py-1.5 bg-gray-50 border-b border-gray-100">
       <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">${c} ${currSym(c)}</span>
     </div>
     ${accs.map(a=>`
-    <div class="px-4 py-3.5 flex items-center justify-between hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0" onclick="openAccountModal(${a.id})">
-      <div class="flex items-center gap-3"><span class="text-xl">${a.icon}</span><span class="text-sm font-semibold text-gray-800">${esc(a.name)}</span></div>
-      <div class="flex items-center gap-2"><span class="text-sm font-bold ${(a.balance||0)<0?'text-red-500':'text-gray-700'}">${(a.balance||0)<0?'-':''}${fmtAmt(Math.abs(a.balance||0),c)}</span><i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i></div>
+    <div class="acc-row px-3 py-3 flex items-center gap-2 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+         data-id="${a.id}" draggable="true"
+         ondragstart="accDragStart(event,${a.id})"
+         ondragover="accDragOver(event)"
+         ondrop="accDrop(event,${a.id})"
+         ondragend="accDragEnd()">
+      <div class="acc-drag-handle" title="拖拽排序">⠿</div>
+      <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="openAccountModal(${a.id})">
+        <span class="text-xl">${a.icon}</span>
+        <span class="text-sm font-semibold text-gray-800">${esc(a.name)}</span>
+      </div>
+      <div class="flex items-center gap-2 cursor-pointer" onclick="openAccountModal(${a.id})">
+        <span class="text-sm font-bold ${(a.balance||0)<0?'text-red-500':'text-gray-700'}">${(a.balance||0)<0?'-':''}${fmtAmt(Math.abs(a.balance||0),c)}</span>
+        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i>
+      </div>
     </div>`).join('')}`).join('')||'<div class="px-4 py-3 text-sm text-gray-400">尚無帳戶</div>';
   
   await renderCatList();
@@ -1815,22 +1970,90 @@ async function renderSettings(){
 }
 
 async function renderCatList(){
-  const cats=S.cats.filter(c=>c.type===S.currentCatTab);
+  const cats=S.cats.filter(c=>c.type===S.currentCatTab)
+    .slice().sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id));
   document.getElementById('cat-mgmt-list').innerHTML=cats.map(c=>`
-    <div class="px-4 py-3 flex items-center justify-between hover:bg-gray-50 cursor-pointer" onclick="openCatEditModal(${c.id})">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-full flex items-center justify-center text-lg" style="background:${c.color}22">${c.emoji}</div>
+    <div class="cat-row px-3 py-3 flex items-center gap-2 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+         data-id="${c.id}" draggable="true"
+         ondragstart="catDragStart(event,${c.id})"
+         ondragover="catDragOver(event)"
+         ondrop="catDrop(event,${c.id})"
+         ondragend="catDragEnd()">
+      <div class="cat-drag-handle" title="拖拽排序">⠿</div>
+      <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="openCatEditModal(${c.id})">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0" style="background:${c.color}22">${c.emoji}</div>
         <span class="text-sm font-semibold text-gray-800">${esc(c.label)}</span>
       </div>
-      <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i>
+      <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300 cursor-pointer" onclick="openCatEditModal(${c.id})"></i>
     </div>`).join('');
   ['expense','income','todo'].forEach(t=>{
     const el=document.getElementById('cat-tab-'+t);
     const active=S.currentCatTab===t;
     el.className=`flex-1 py-2.5 text-xs font-bold ${active?'text-amber-600 border-b-2 border-amber-500':'text-gray-400 border-b-2 border-transparent'}`;
   });
+  lucide.createIcons();
 }
-function setCatTab(t){ S.currentCatTab=t; renderCatList(); lucide.createIcons(); }
+function setCatTab(t){ S.currentCatTab=t; renderCatList(); }
+
+// ─── CATEGORY DRAG-TO-REORDER ─────────────────────────────────────────────────
+let _dragCatId=null;
+function catDragStart(e,id){
+  _dragCatId=id;
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>e.currentTarget.classList.add('dragging'),0);
+}
+function catDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.cat-row.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if(e.currentTarget.dataset.id!=_dragCatId) e.currentTarget.classList.add('drag-over');
+}
+function catDragEnd(){
+  document.querySelectorAll('.cat-row').forEach(el=>el.classList.remove('dragging','drag-over'));
+}
+async function catDrop(e,targetId){
+  e.preventDefault();
+  document.querySelectorAll('.cat-row').forEach(el=>el.classList.remove('dragging','drag-over'));
+  if(_dragCatId===targetId||!_dragCatId) return;
+  const [srcCat,tgtCat]=await Promise.all([db.categories.get(_dragCatId),db.categories.get(targetId)]);
+  if(!srcCat||!tgtCat) return;
+  const sO=srcCat.sortOrder??srcCat.id, tO=tgtCat.sortOrder??tgtCat.id;
+  await db.categories.update(_dragCatId,{sortOrder:tO});
+  await db.categories.update(targetId,{sortOrder:sO});
+  _dragCatId=null;
+  S.cats=await db.categories.toArray();
+  renderCatList();
+}
+
+// ─── ACCOUNT DRAG-TO-REORDER ──────────────────────────────────────────────────
+let _dragAccId=null;
+function accDragStart(e,id){
+  _dragAccId=id;
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>e.currentTarget.classList.add('dragging'),0);
+}
+function accDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.acc-row.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if(e.currentTarget.dataset.id!=_dragAccId) e.currentTarget.classList.add('drag-over');
+}
+function accDragEnd(){
+  document.querySelectorAll('.acc-row').forEach(el=>el.classList.remove('dragging','drag-over'));
+}
+async function accDrop(e,targetId){
+  e.preventDefault();
+  document.querySelectorAll('.acc-row').forEach(el=>el.classList.remove('dragging','drag-over'));
+  if(_dragAccId===targetId||!_dragAccId) return;
+  const [srcAcc,tgtAcc]=await Promise.all([db.accounts.get(_dragAccId),db.accounts.get(targetId)]);
+  if(!srcAcc||!tgtAcc) return;
+  const sO=srcAcc.sortOrder??srcAcc.id, tO=tgtAcc.sortOrder??tgtAcc.id;
+  await db.accounts.update(_dragAccId,{sortOrder:tO});
+  await db.accounts.update(targetId,{sortOrder:sO});
+  _dragAccId=null;
+  S.accounts=await db.accounts.toArray();
+  renderSettings();
+}
 
 // ─── MODAL LOGIC ──────────────────────────────────────────────────────────────
 function openModal(id){
@@ -1870,7 +2093,8 @@ function setTxType(t){
 }
 
 function renderTxCatGrid(){
-  const cats=S.cats.filter(c=>c.type===S.txType);
+  const cats=S.cats.filter(c=>c.type===S.txType)
+    .slice().sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id));
   const grid=document.getElementById('tx-cat-grid');
   grid.innerHTML=cats.map(c=>`
     <div class="cat-pill ${S.selectedCatEmoji===c.emoji?'selected':''}" onclick="selectTxCat('${c.emoji}')">
@@ -2182,13 +2406,51 @@ async function saveCat(){
   const emoji=document.getElementById('cat-emoji-input').value.trim();
   const label=document.getElementById('cat-name-input').value.trim();
   const type=document.getElementById('cat-type-input').value;
-  if(!emoji||!label)return;
+  if(!emoji||!label) return;
   const data={emoji,label,type,color:S.selectedCatColor};
-  if(S.editingCatId) await db.categories.update(S.editingCatId,data);
-  else await db.categories.add(data);
+
+  if(S.editingCatId){
+    const oldCat=S.cats.find(x=>x.id===S.editingCatId);
+    const oldEmoji=oldCat?oldCat.emoji:null;
+    const oldType=oldCat?oldCat.type:type;
+    const emojiChanged=oldCat&&oldEmoji!==emoji;
+
+    await db.categories.update(S.editingCatId,data);
+
+    if(emojiChanged){
+      // Cascade: update all transactions using the OLD emoji + OLD type
+      const txsToUpdate=await db.transactions
+        .filter(t=>t.category===oldEmoji&&t.type===oldType)
+        .toArray();
+      if(txsToUpdate.length>0){
+        await Promise.all(txsToUpdate.map(t=>db.transactions.update(t.id,{category:emoji})));
+        toast(`已更新 ${txsToUpdate.length} 筆交易的類別圖示 ✅`);
+      } else {
+        toast('類別已更新 ✅');
+      }
+    } else {
+      // Emoji unchanged: label/color change is automatic on next render
+      // Count affected transactions so user sees confirmation
+      const affected=await db.transactions
+        .filter(t=>t.category===emoji&&t.type===type)
+        .count();
+      toast(`類別已更新，${affected} 筆交易將自動套用新名稱與顏色 ✅`);
+    }
+  } else {
+    await db.categories.add(data);
+    toast('已新增類別 ✅');
+  }
+
+  // Refresh category cache
   S.cats=await db.categories.toArray();
   closeModal('cat-edit-modal');
+
+  // Re-render everything that shows categories or transactions
   renderCatList();
+  if(S.page==='ledger') await renderLedger();
+  else if(S.page==='stats') await renderStats();
+  // Always re-render ledger cache so any subsequent navigation is fresh
+  if(S.page!=='ledger') await renderLedger();
 }
 async function deleteCat(){
   if(!confirm('確定刪除此類別？'))return;
@@ -2196,6 +2458,65 @@ async function deleteCat(){
   S.cats=await db.categories.toArray();
   closeModal('cat-edit-modal');
   renderCatList();
+}
+
+// ─── TODO DUE DATE HELPERS ────────────────────────────────────────────────────
+function setTodoDueFields(isoStr){
+  // isoStr: "YYYY-MM-DDTHH:MM" or ""
+  if(!isoStr){ clearTodoDue(); return; }
+  const d=dayjs(isoStr);
+  document.getElementById('todo-due-year').value=d.format('YYYY');
+  document.getElementById('todo-due-md').value=d.format('MM/DD');
+  document.getElementById('todo-due-time').value=d.format('HH:mm');
+}
+function getTodoDueValue(){
+  const y=document.getElementById('todo-due-year').value.trim();
+  const md=document.getElementById('todo-due-md').value.trim();
+  const t=document.getElementById('todo-due-time').value.trim();
+  if(!y||!md) return '';
+  const time=t||'23:59';
+  return y+'-'+md.replace('/','-')+'T'+time;
+}
+function clearTodoDue(){
+  document.getElementById('todo-due-year').value='';
+  document.getElementById('todo-due-md').value='';
+  document.getElementById('todo-due-time').value='';
+}
+function todoDueYearInput(el){
+  // Strip non-digits, enforce max 4 chars
+  el.value=el.value.replace(/\D/g,'').slice(0,4);
+  if(el.value.length===4){
+    // Auto-advance to MM/DD field
+    document.getElementById('todo-due-md').focus();
+  }
+}
+function todoDueMdInput(el){
+  // Auto-insert slash after 2 digits
+  let v=el.value.replace(/[^\d/]/g,'');
+  if(v.length===2&&!v.includes('/')) v=v+'/';
+  el.value=v.slice(0,5);
+  if(el.value.length===5){
+    document.getElementById('todo-due-time').focus();
+  }
+}
+function todoDueMdKey(e,el){
+  // Backspace on empty md field goes back to year
+  if(e.key==='Backspace'&&el.value===''){
+    document.getElementById('todo-due-year').focus();
+  }
+}
+function todoDueTimeInput(el){
+  // Auto-insert colon after 2 digits, enforce 24h
+  let v=el.value.replace(/[^\d:]/g,'');
+  if(v.length===2&&!v.includes(':')) v=v+':';
+  el.value=v.slice(0,5);
+  // Validate hours 0-23 and minutes 0-59 on complete input
+  if(v.length===5){
+    const [hh,mm]=v.split(':').map(Number);
+    if(hh>23) el.value='23:'+v.slice(3);
+    if(mm>59) el.value=v.slice(0,3)+'59';
+    el.blur();
+  }
 }
 
 // ─── TODO MODAL ───────────────────────────────────────────────────────────────
@@ -2210,7 +2531,7 @@ function openTodoModal(id=null){
       document.getElementById('todo-title-input').value=t.title;
       document.getElementById('todo-pri-input').value=t.priority;
       document.getElementById('todo-list-input').value=t.listId;
-      document.getElementById('todo-due-input').value=t.dueAt||'';
+      setTodoDueFields(t.dueAt||'');
       document.getElementById('todo-note-input').value=t.note||'';
       document.getElementById('todo-modal-title').textContent='編輯任務';
       delBtn.classList.remove('hidden');
@@ -2219,8 +2540,10 @@ function openTodoModal(id=null){
     document.getElementById('todo-title-input').value='';
     document.getElementById('todo-pri-input').value='med';
     if(S.activeTodoListId) document.getElementById('todo-list-input').value=S.activeTodoListId;
-    // Default due time: today at 23:59
-    document.getElementById('todo-due-input').value=dayjs().format('YYYY-MM-DD')+'T23:59';
+    // Default: today at 23:59
+    document.getElementById('todo-due-year').value=dayjs().format('YYYY');
+    document.getElementById('todo-due-md').value=dayjs().format('MM/DD');
+    document.getElementById('todo-due-time').value='23:59';
     document.getElementById('todo-note-input').value='';
     document.getElementById('todo-modal-title').textContent='新增任務';
     delBtn.classList.add('hidden');
@@ -2232,7 +2555,7 @@ async function saveTodo(){
   const title=document.getElementById('todo-title-input').value.trim();
   const priority=document.getElementById('todo-pri-input').value;
   const listId=parseInt(document.getElementById('todo-list-input').value);
-  const dueAt=document.getElementById('todo-due-input').value;
+  const dueAt=getTodoDueValue();
   const note=document.getElementById('todo-note-input').value.trim();
   if(!title)return;
   const data={title,priority,listId,dueAt,note,done:false};
@@ -2242,7 +2565,8 @@ async function saveTodo(){
     await db.todos.update(S.editingTodoId,data);
   } else await db.todos.add(data);
   closeModal('todo-modal');
-  renderTodo();
+  if(S.page==='calendar') await renderCalendar();
+  else renderTodo();
 }
 
 function openTodoListPicker(){
