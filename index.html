@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -177,6 +176,7 @@ input[type=number]{ -moz-appearance:textfield; }
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="ledger" onclick="navigate('ledger')"><i data-lucide="book-open" class="w-4 h-4"></i><span class="text-sm font-semibold">明細</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="stats" onclick="navigate('stats')"><i data-lucide="bar-chart-2" class="w-4 h-4"></i><span class="text-sm font-semibold">統計</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="todo" onclick="navigate('todo')"><i data-lucide="check-square" class="w-4 h-4"></i><span class="text-sm font-semibold">待辦</span></div>
+    <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="calendar" onclick="navigate('calendar')"><i data-lucide="calendar" class="w-4 h-4"></i><span class="text-sm font-semibold">月曆</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="split" onclick="navigate('split')"><i data-lucide="users" class="w-4 h-4"></i><span class="text-sm font-semibold">拆帳</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="habit" onclick="navigate('habit')"><i data-lucide="repeat" class="w-4 h-4"></i><span class="text-sm font-semibold">習慣</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="countdown" onclick="navigate('countdown')"><i data-lucide="timer" class="w-4 h-4"></i><span class="text-sm font-semibold">倒數</span></div>
@@ -321,6 +321,19 @@ input[type=number]{ -moz-appearance:textfield; }
       <div class="flex-1 panel-scroll px-4 py-3 pb-24" id="notes-wrap"></div>
     </div>
 
+    <!-- ─── CALENDAR PAGE ─── -->
+    <div id="page-calendar" class="page h-full flex-col">
+      <div class="bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-1 flex-shrink-0">
+        <button onclick="calChangeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+        <span id="cal-month-label" class="text-sm font-bold text-gray-700 flex-1 text-center"></span>
+        <button onclick="calChangeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+      </div>
+      <div class="flex-1 panel-scroll pb-24">
+        <div id="cal-grid-wrap" class="px-3 pt-2"></div>
+        <div id="cal-detail-wrap" class="px-4 pb-4"></div>
+      </div>
+    </div>
+
     <!-- ─── SETTINGS PAGE ─── -->
     <div id="page-settings" class="page h-full flex-col">
       <div class="flex-1 panel-scroll px-4 py-3 pb-24 space-y-5">
@@ -404,10 +417,10 @@ input[type=number]{ -moz-appearance:textfield; }
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400 active" data-page="ledger" onclick="navigate('ledger')"><i data-lucide="book-open" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">明細</span><div class="nav-dot"></div></button>
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="stats" onclick="navigate('stats')"><i data-lucide="bar-chart-2" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">統計</span><div class="nav-dot"></div></button>
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="todo" onclick="navigate('todo')"><i data-lucide="check-square" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">待辦</span><div class="nav-dot"></div></button>
+      <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="calendar" onclick="navigate('calendar')"><i data-lucide="calendar" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">月曆</span><div class="nav-dot"></div></button>
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="split" onclick="navigate('split')"><i data-lucide="users" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">拆帳</span><div class="nav-dot"></div></button>
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="habit" onclick="navigate('habit')"><i data-lucide="repeat" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">習慣</span><div class="nav-dot"></div></button>
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="countdown" onclick="navigate('countdown')"><i data-lucide="timer" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">倒數</span><div class="nav-dot"></div></button>
-      <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="notes" onclick="navigate('notes')"><i data-lucide="file-text" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">筆記</span><div class="nav-dot"></div></button>
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="settings" onclick="navigate('settings')"><i data-lucide="settings" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">設定</span><div class="nav-dot"></div></button>
     </div>
   </nav>
@@ -628,10 +641,6 @@ input[type=number]{ -moz-appearance:textfield; }
         <div><label class="block text-xs font-bold text-gray-500 mb-1.5">優先級</label><select id="todo-pri-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"><option value="high">🔴 高</option><option value="med" selected>🟡 中</option><option value="low">🟢 低</option></select></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-1.5">所屬清單</label><select id="todo-list-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select></div>
       </div>
-      <div>
-        <label class="block text-xs font-bold text-gray-500 mb-2">類別標籤（選填）</label>
-        <div class="flex flex-wrap gap-2" id="todo-cat-chips"></div>
-      </div>
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">截止時間（選填）</label><input id="todo-due-input" type="datetime-local" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">備註</label><textarea id="todo-note-input" rows="2" placeholder="選填備註..." class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm inp-amber resize-none"></textarea></div>
       <div class="flex gap-3">
@@ -691,6 +700,28 @@ input[type=number]{ -moz-appearance:textfield; }
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">群組名稱</label><input id="group-name-input" type="text" placeholder="例如：週末露營" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">成員（每行一位）</label><textarea id="group-members-input" rows="4" placeholder="Alice&#10;Bob&#10;Carol" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm inp-amber resize-none"></textarea></div>
       <button onclick="saveGroup()" class="w-full py-3 rounded-xl bg-purple-500 text-white font-black">建立群組</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Group Modal -->
+<div id="edit-group-modal" class="modal-overlay center hidden" onclick="closeIfBdrop(event,'edit-group-modal')">
+  <div class="modal-sheet">
+    <div class="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+      <div class="font-black text-gray-900 text-base">編輯群組</div>
+      <button onclick="closeModal('edit-group-modal')" class="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm">✕</button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div><label class="block text-xs font-bold text-gray-500 mb-1.5">群組名稱</label><input id="edit-group-name-input" type="text" placeholder="例如：週末露營" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
+      <div>
+        <label class="block text-xs font-bold text-gray-500 mb-1.5">成員（每行一位）</label>
+        <p class="text-[10px] text-gray-400 mb-1.5">提示：刪除某行即可移除該成員（不影響已有費用紀錄）</p>
+        <textarea id="edit-group-members-input" rows="5" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm inp-amber resize-none"></textarea>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="deleteEditingGroup()" class="flex-none px-4 py-3 rounded-xl bg-red-50 text-red-500 font-bold text-sm">🗑️ 刪除群組</button>
+        <button onclick="saveEditGroup()" class="flex-1 py-3 rounded-xl bg-purple-500 text-white font-black">儲存</button>
+      </div>
     </div>
   </div>
 </div>
@@ -907,9 +938,9 @@ const S={
   activeLedgerId:null, txFilter:'all',
   activeTodoListId:null, todoFilter:'active', selectedTodoCatId:null,
   activeGroupId:null, splitMode:'equal',
-  editingTxId:null, editingAccId:null, editingLedgerId:null,
+  calMonth:null, calSelectedDate:null,
   editingTodoId:null, editingSplitExpId:null, editingCatId:null,
-  editingHabitId:null, editingCdId:null, editingNoteId:null,
+  editingHabitId:null, editingCdId:null, editingNoteId:null, editingGroupId:null,
   selectedCat:null, selectedAccIcon:ACC_ICONS[0],
   selectedCatColor:'#FBBF24', selectedHabitIcon:HABIT_ICONS[0],
   selectedHabitColor:'#FBBF24', selectedCdIcon:CD_ICONS[0],
@@ -949,6 +980,8 @@ async function boot(){
 
   // Cache
   await refreshCache();
+  S.calMonth=dayjs().format('YYYY-MM');
+  S.calSelectedDate=null;
   lucide.createIcons();
   updateMonthLabels();
   await renderPage();
@@ -976,7 +1009,7 @@ async function navigate(page){
     el.classList.toggle('text-amber-500',a);
     el.classList.toggle('text-gray-400',!a);
   });
-  const titles={ledger:'明細',stats:'統計',todo:'待辦清單',split:'AA 拆帳',habit:'習慣追蹤',countdown:'倒數計時',notes:'靈感筆記',settings:'設定'};
+  const titles={ledger:'明細',stats:'統計',todo:'待辦清單',calendar:'月曆',split:'AA 拆帳',habit:'習慣追蹤',countdown:'倒數計時',notes:'靈感筆記',settings:'設定'};
   document.getElementById('header-title').textContent=titles[page]||'';
   const ha=document.getElementById('header-actions');
   if(page==='ledger'){
@@ -987,7 +1020,7 @@ async function navigate(page){
     ha.innerHTML='';
   }
   const fab=document.getElementById('fab');
-  fab.style.display=['ledger','todo','split','habit','countdown'].includes(page)?'flex':'none';
+  fab.style.display=['ledger','todo','split','habit','countdown','notes'].includes(page)?'flex':'none';
   lucide.createIcons();
   await renderPage();
 }
@@ -998,6 +1031,7 @@ function onFab(){
   else if(S.page==='split'){ if(!S.activeGroupId){toast('請先選擇或建立群組');return;} openSplitExpenseModal(); }
   else if(S.page==='habit') openHabitModal();
   else if(S.page==='countdown') openCountdownModal();
+  else if(S.page==='notes') openNoteModal();
 }
 
 async function renderPage(){
@@ -1005,6 +1039,7 @@ async function renderPage(){
     case 'ledger': await renderLedger(); break;
     case 'stats': await renderStats(); break;
     case 'todo': await renderTodo(); break;
+    case 'calendar': await renderCalendar(); break;
     case 'split': await renderSplit(); break;
     case 'habit': await renderHabit(); break;
     case 'countdown': await renderCountdown(); break;
@@ -1309,7 +1344,6 @@ async function renderTodo(){
 
   let todos=await db.todos.toArray();
   if(S.activeTodoListId!==null) todos=todos.filter(t=>t.listId===S.activeTodoListId);
-  if(S.selectedTodoCatId) todos=todos.filter(t=>t.catId===S.selectedTodoCatId);
   if(S.todoFilter==='active') todos=todos.filter(t=>!t.done);
   else if(S.todoFilter==='done') todos=todos.filter(t=>t.done);
 
@@ -1331,7 +1365,6 @@ async function renderTodo(){
     const isOverdue=t.dueAt&&!t.done&&dayjs(t.dueAt).isBefore(dayjs());
     const due=t.dueAt?`<span class="text-[10px] ${isOverdue?'text-red-500 font-bold':'text-gray-400'}">⏰ ${dayjs(t.dueAt).format('M/D HH:mm')}${isOverdue?' (逾期)':''}</span>`:'';
     const ln=S.todoLists.find(l=>l.id===t.listId);
-    const cat=t.catId?S.cats.find(c=>c.id===t.catId):null;
     return `<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-3 mb-2 flex items-start gap-3 ${t.done?'opacity-60':''}" onclick="openTodoModal(${t.id})">
       <div class="todo-cb mt-0.5 ${t.done?'done':''}" onclick="event.stopPropagation();toggleTodo(${t.id})">
         ${t.done?'<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>':''}
@@ -1341,7 +1374,6 @@ async function renderTodo(){
         <div class="flex items-center flex-wrap gap-1 mt-1">
           <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${pc[t.priority]||'pri-med'}">${pl[t.priority]||'中'}</span>
           ${ln?`<span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">${esc(ln.name)}</span>`:''}
-          ${cat?`<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style="background:${cat.color}">${cat.emoji} ${cat.label}</span>`:''}
           ${due}
         </div>
         ${t.note?`<div class="text-xs text-gray-400 mt-1 truncate">${esc(t.note)}</div>`:''}
@@ -1491,12 +1523,134 @@ async function importSettlementToLedger(){
   toast(`已匯入 ${settlement.length} 筆結算 ✅`);
 }
 
-// ─── RENDER HABIT ─────────────────────────────────────────────────────────────
+// ─── CALENDAR ─────────────────────────────────────────────────────────────────
+if(!S.calMonth) S.calMonth=dayjs().format('YYYY-MM');
+
+function calChangeMonth(d){
+  S.calMonth=dayjs(S.calMonth+'-01').add(d,'month').format('YYYY-MM');
+  S.calSelectedDate=null;
+  renderCalendar();
+}
+
+async function renderCalendar(){
+  if(!S.calMonth) S.calMonth=dayjs().format('YYYY-MM');
+  document.getElementById('cal-month-label').textContent=dayjs(S.calMonth+'-01').format('YYYY年M月');
+
+  // Gather all todos and countdowns
+  const todos=await db.todos.toArray();
+  const cds=await db.countdowns.toArray();
+
+  // Build date→items map
+  const dateMap={}; // date string → [{type,label,emoji}]
+  todos.forEach(t=>{
+    if(!t.dueAt) return;
+    const d=dayjs(t.dueAt).format('YYYY-MM-DD');
+    if(!dateMap[d]) dateMap[d]=[];
+    dateMap[d].push({type:'todo',label:t.title,done:t.done,id:t.id,emoji:t.done?'✅':'📌'});
+  });
+  cds.forEach(c=>{
+    if(!c.targetDate) return;
+    const d=c.targetDate;
+    if(!dateMap[d]) dateMap[d]=[];
+    dateMap[d].push({type:'cd',label:c.name,id:c.id,emoji:c.icon||'⏳'});
+  });
+
+  const today=dayjs().format('YYYY-MM-DD');
+  const monthStart=dayjs(S.calMonth+'-01');
+  const daysInMonth=monthStart.daysInMonth();
+  const startDow=monthStart.day(); // 0=Sun
+
+  // Header row Sun–Sat
+  const dowLabels=['日','一','二','三','四','五','六'];
+  let html=`<div class="grid grid-cols-7 mb-1">
+    ${dowLabels.map(l=>`<div class="text-center text-[10px] font-bold text-gray-400 py-1">${l}</div>`).join('')}
+  </div>`;
+
+  // Calendar grid
+  html+='<div class="grid grid-cols-7 gap-px bg-gray-100 rounded-2xl overflow-hidden border border-gray-100">';
+
+  // Leading empty cells
+  for(let i=0;i<startDow;i++){
+    html+=`<div class="bg-white min-h-[52px] p-1"></div>`;
+  }
+
+  for(let day=1;day<=daysInMonth;day++){
+    const dateStr=monthStart.date(day).format('YYYY-MM-DD');
+    const isToday=dateStr===today;
+    const isSelected=dateStr===S.calSelectedDate;
+    const items=dateMap[dateStr]||[];
+    const hasTodo=items.some(x=>x.type==='todo');
+    const hasCd=items.some(x=>x.type==='cd');
+
+    html+=`<div class="bg-white min-h-[52px] p-1.5 cursor-pointer active:bg-amber-50 transition-colors relative ${isSelected?'ring-2 ring-inset ring-amber-400':''}" onclick="calSelectDate('${dateStr}')">
+      <div class="flex justify-center mb-1">
+        <span class="text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday?'bg-amber-400 text-white':isSelected?'text-amber-600':'text-gray-600'}">${day}</span>
+      </div>
+      <div class="flex flex-wrap gap-px justify-center">
+        ${hasTodo?`<span class="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0"></span>`:''}
+        ${hasCd?`<span class="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0"></span>`:''}
+      </div>
+      ${items.length>0?`<div class="text-[8px] text-gray-400 text-center leading-tight mt-0.5 truncate">${items.length}項</div>`:''}
+    </div>`;
+  }
+
+  // Trailing empty cells to complete the grid
+  const totalCells=startDow+daysInMonth;
+  const trailing=(7-totalCells%7)%7;
+  for(let i=0;i<trailing;i++) html+=`<div class="bg-white min-h-[52px] p-1"></div>`;
+  html+='</div>';
+
+  // Legend
+  html+=`<div class="flex gap-4 justify-center mt-3 mb-2">
+    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-400"></span><span class="text-[10px] text-gray-400 font-semibold">待辦事項</span></div>
+    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-400"></span><span class="text-[10px] text-gray-400 font-semibold">倒數截止</span></div>
+  </div>`;
+
+  document.getElementById('cal-grid-wrap').innerHTML=html;
+
+  // Detail panel
+  renderCalDetail(dateMap);
+  lucide.createIcons();
+}
+
+function calSelectDate(d){
+  S.calSelectedDate=S.calSelectedDate===d?null:d;
+  renderCalendar();
+}
+
+async function renderCalDetail(dateMap){
+  const wrap=document.getElementById('cal-detail-wrap');
+  if(!S.calSelectedDate){
+    wrap.innerHTML='<div class="text-center text-xs text-gray-300 py-4">點擊日期查看詳情</div>';
+    return;
+  }
+  const items=dateMap[S.calSelectedDate]||[];
+  const label=dayjs(S.calSelectedDate).format('M月D日 dddd');
+  if(items.length===0){
+    wrap.innerHTML=`<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mt-2 text-center text-sm text-gray-400">${label}・無事項</div>`;
+    return;
+  }
+  wrap.innerHTML=`<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mt-2">
+    <div class="text-xs font-bold text-gray-500 mb-3">${label}</div>
+    ${items.map(it=>`
+    <div class="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0 cursor-pointer" onclick="${it.type==='todo'?'closeModal();openTodoModal('+it.id+')':'openCountdownModal('+it.id+')'}">
+      <span class="text-lg flex-shrink-0">${it.emoji}</span>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-semibold text-gray-800 ${it.done?'line-through text-gray-400':''}">${esc(it.label)}</div>
+        <div class="text-[10px] text-gray-400 mt-0.5">${it.type==='todo'?'📌 待辦事項':'⏳ 倒數截止'}</div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+
 function getWeekDates(){
+  // Week starts on Sunday (dow=0)
   const today=dayjs();
-  const dow=today.day(); // 0=Sun
-  const offset=dow===0?-6:1-dow; // Monday
-  return Array.from({length:7},(_,i)=>today.add(offset+i,'day').format('YYYY-MM-DD'));
+  const dow=today.day(); // 0=Sun, 6=Sat
+  // Sunday of this week = today minus dow days
+  const sunday=today.subtract(dow,'day');
+  return Array.from({length:7},(_,i)=>sunday.add(i,'day').format('YYYY-MM-DD'));
 }
 
 async function renderHabit(){
@@ -1504,7 +1658,7 @@ async function renderHabit(){
   const wrap=document.getElementById('habit-wrap');
   const today=dayjs().format('YYYY-MM-DD');
   const weekDates=getWeekDates();
-  const dayLabels=['一','二','三','四','五','六','日'];
+  const dayLabels=['日','一','二','三','四','五','六'];
 
   if(habits.length===0){
     wrap.innerHTML=`<div class="text-center py-16 text-gray-300"><div class="text-5xl mb-3">🎯</div><div class="text-sm font-semibold">尚無習慣</div><div class="text-xs mt-1">點擊右下角 ＋ 新增</div></div>`;
@@ -1834,16 +1988,17 @@ async function editTx(id){
   setTxType(t.type);
   document.getElementById('tx-amount').value=t.amount;
   document.getElementById('tx-date').value=t.date;
-  document.getElementById('tx-note').value=t.note;
+  document.getElementById('tx-note').value=t.note||'';
+  // openModal re-renders the account select; set values AFTER it runs
+  closeModal('tx-detail-modal');
+  openModal('tx-modal');
+  // Now the select is populated — force-set the correct account
   document.getElementById('tx-account').value=t.accountId;
   if(t.type==='transfer') document.getElementById('tx-to-account').value=t.toAccountId;
   else selectTxCat(t.category);
-  
   document.getElementById('tx-modal-title').textContent='編輯交易';
   document.getElementById('tx-del-btn').classList.remove('hidden');
   updateReceiptsUI();
-  closeModal('tx-detail-modal');
-  openModal('tx-modal');
 }
 
 async function deleteTx(){
@@ -2048,13 +2203,6 @@ function openTodoModal(id=null){
   S.editingTodoId=id;
   const listSelect=document.getElementById('todo-list-input');
   listSelect.innerHTML=S.todoLists.map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('');
-  
-  const chips=document.getElementById('todo-cat-chips');
-  const todoCats=S.cats.filter(c=>c.type==='todo');
-  chips.innerHTML=todoCats.map(c=>`
-    <div class="px-3 py-1.5 rounded-full border-2 text-xs font-bold cursor-pointer transition-all ${S.selectedTodoCatId===c.id?'border-blue-500 bg-blue-500 text-white':'border-gray-100 bg-gray-50 text-gray-500'}" onclick="selectTodoCat(${c.id})">
-      ${c.emoji} ${esc(c.label)}
-    </div>`).join('');
 
   const delBtn=document.getElementById('todo-del-btn');
   if(id){
@@ -2064,7 +2212,6 @@ function openTodoModal(id=null){
       document.getElementById('todo-list-input').value=t.listId;
       document.getElementById('todo-due-input').value=t.dueAt||'';
       document.getElementById('todo-note-input').value=t.note||'';
-      selectTodoCat(t.catId);
       document.getElementById('todo-modal-title').textContent='編輯任務';
       delBtn.classList.remove('hidden');
     });
@@ -2072,24 +2219,15 @@ function openTodoModal(id=null){
     document.getElementById('todo-title-input').value='';
     document.getElementById('todo-pri-input').value='med';
     if(S.activeTodoListId) document.getElementById('todo-list-input').value=S.activeTodoListId;
-    document.getElementById('todo-due-input').value='';
+    // Default due time: today at 23:59
+    document.getElementById('todo-due-input').value=dayjs().format('YYYY-MM-DD')+'T23:59';
     document.getElementById('todo-note-input').value='';
-    selectTodoCat(null);
     document.getElementById('todo-modal-title').textContent='新增任務';
     delBtn.classList.add('hidden');
   }
   openModal('todo-modal');
 }
-function selectTodoCat(id){
-  if(S.selectedTodoCatId===id&&id!==null) id=null; // toggle off
-  S.selectedTodoCatId=id;
-  document.querySelectorAll('#todo-cat-chips div').forEach((el,idx)=>{
-    const c=S.cats.filter(x=>x.type==='todo')[idx];
-    if(!c)return;
-    const active=c.id===id;
-    el.className=`px-3 py-1.5 rounded-full border-2 text-xs font-bold cursor-pointer transition-all ${active?'border-blue-500 bg-blue-500 text-white':'border-gray-100 bg-gray-50 text-gray-500'}`;
-  });
-}
+// selectTodoCat removed — category tags feature has been removed from todos
 async function saveTodo(){
   const title=document.getElementById('todo-title-input').value.trim();
   const priority=document.getElementById('todo-pri-input').value;
@@ -2097,7 +2235,7 @@ async function saveTodo(){
   const dueAt=document.getElementById('todo-due-input').value;
   const note=document.getElementById('todo-note-input').value.trim();
   if(!title)return;
-  const data={title,priority,listId,dueAt,note,done:false,catId:S.selectedTodoCatId};
+  const data={title,priority,listId,dueAt,note,done:false};
   if(S.editingTodoId){
     const old=await db.todos.get(S.editingTodoId);
     data.done=old.done;
@@ -2150,12 +2288,18 @@ function setTodoFilter(f){
 // ─── SPLIT MODALS ─────────────────────────────────────────────────────────────
 function openGroupPicker(){
   const list=document.getElementById('group-picker-list');
-  list.innerHTML=S.groups.map(g=>`
-    <div class="p-3 mb-2 rounded-xl border-2 ${g.id===S.activeGroupId?'border-purple-500 bg-purple-50':'border-gray-100'} cursor-pointer" onclick="switchGroup(${g.id})">
-      <div class="font-bold text-gray-800">${esc(g.name)}</div>
-      <div class="text-[10px] text-gray-400 mt-1">${g.members.join(', ')}</div>
+  list.innerHTML=S.groups.length===0
+    ?`<div class="text-center text-sm text-gray-400 py-6">尚無群組，請點擊「新群組」建立</div>`
+    :S.groups.map(g=>`
+    <div class="flex items-center gap-2 p-3 mb-2 rounded-xl border-2 ${g.id===S.activeGroupId?'border-purple-500 bg-purple-50':'border-gray-100 bg-white'}">
+      <div class="flex-1 cursor-pointer" onclick="switchGroup(${g.id})">
+        <div class="font-bold text-gray-800 text-sm">${esc(g.name)}</div>
+        <div class="text-[10px] text-gray-400 mt-0.5">${g.members.join(', ')}</div>
+      </div>
+      <button onclick="event.stopPropagation();openEditGroupModal(${g.id})" class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-purple-100 text-gray-500 hover:text-purple-700 flex-shrink-0"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
     </div>`).join('');
   openModal('group-picker-modal');
+  lucide.createIcons();
 }
 function switchGroup(id){ S.activeGroupId=id; renderSplit(); closeModal('group-picker-modal'); }
 function openNewGroupModal(){
@@ -2171,6 +2315,37 @@ async function saveGroup(){
   S.groups=await db.groups.toArray();
   switchGroup(id);
   closeModal('new-group-modal');
+}
+
+function openEditGroupModal(id){
+  S.editingGroupId=id;
+  const g=S.groups.find(x=>x.id===id); if(!g)return;
+  document.getElementById('edit-group-name-input').value=g.name;
+  document.getElementById('edit-group-members-input').value=g.members.join('\n');
+  closeModal('group-picker-modal');
+  openModal('edit-group-modal');
+}
+async function saveEditGroup(){
+  const name=document.getElementById('edit-group-name-input').value.trim();
+  const mems=document.getElementById('edit-group-members-input').value.split('\n').map(m=>m.trim()).filter(m=>m);
+  if(!name||mems.length===0)return;
+  await db.groups.update(S.editingGroupId,{name,members:mems});
+  S.groups=await db.groups.toArray();
+  closeModal('edit-group-modal');
+  toast('群組已更新 ✅');
+  openGroupPicker();
+  if(S.activeGroupId===S.editingGroupId) renderSplit();
+}
+async function deleteEditingGroup(){
+  if(!confirm('確定刪除此群組？相關費用記錄將一併刪除。'))return;
+  await db.splitExpenses.where('groupId').equals(S.editingGroupId).delete();
+  await db.groups.delete(S.editingGroupId);
+  S.groups=await db.groups.toArray();
+  if(S.activeGroupId===S.editingGroupId) S.activeGroupId=S.groups.length>0?S.groups[0].id:null;
+  closeModal('edit-group-modal');
+  toast('群組已刪除');
+  openGroupPicker();
+  renderSplit();
 }
 async function openSplitExpenseModal(id=null){
   const group=S.groups.find(g=>g.id===S.activeGroupId);
