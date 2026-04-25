@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -40,7 +39,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/isSameOrBefore.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/isSameOrAfter.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/relativeTime.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -305,18 +303,16 @@ input[type=number]{ -moz-appearance:textfield; }
 
     <!-- ─── TODO PAGE ─── -->
     <div id="page-todo" class="page h-full flex-col">
-      <div id="notif-banner" class="bg-amber-50 border-b border-amber-200 px-4 py-2.5 items-center gap-2 flex-shrink-0" style="display:none">
+      <div id="notif-banner" class="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center gap-2 flex-shrink-0">
         <i data-lucide="bell" class="w-4 h-4 text-amber-600 flex-shrink-0"></i>
         <span class="text-xs text-amber-700 font-semibold flex-1">開啟通知以接收任務提醒</span>
         <button onclick="requestNotifPermission()" class="text-xs font-bold text-white bg-amber-500 px-3 py-1.5 rounded-full">開啟提醒</button>
       </div>
       <!-- Notif granted bar: test button -->
-      <div id="notif-granted-bar" class="hidden px-4 py-2.5 border-b border-green-100 items-center gap-2 flex-shrink-0" style="background:#F0FDF4;display:none">
-        <i data-lucide="bell-ring" class="w-4 h-4 text-green-500 flex-shrink-0"></i>
-        <span class="text-xs text-green-700 flex-1 font-semibold">通知已開啟 · 截止前 10 小時提醒</span>
-        <button onclick="testNotification()" class="flex items-center gap-1 text-xs font-black text-white bg-green-500 px-3 py-1.5 rounded-full shadow-sm active:scale-95 transition-transform">
-          <i data-lucide="send" class="w-3 h-3"></i> 測試手機通知
-        </button>
+      <div id="notif-granted-bar" class="hidden bg-green-50 border-b border-green-100 px-4 py-2 flex items-center gap-2 flex-shrink-0">
+        <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-green-500 flex-shrink-0"></i>
+        <span class="text-xs text-green-700 flex-1">通知已開啟 · 截止前 10 小時提醒</span>
+        <button onclick="testNotification()" class="text-xs font-bold text-green-700 bg-green-100 border border-green-200 px-3 py-1 rounded-full hover:bg-green-200 transition-colors">測試通知</button>
       </div>
       <div class="bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 flex-shrink-0">
         <button onclick="openTodoListPicker()" class="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 font-bold text-sm px-3 py-1.5 rounded-full">
@@ -1005,62 +1001,19 @@ input[type=number]{ -moz-appearance:textfield; }
 
 // ─── SERVICE WORKER ──────────────────────────────────────────────────────────
 const SW_CODE = `
-const CACHE_NAME='dr-r-v1';
-self.addEventListener('install', e=>{
-  self.skipWaiting();
-});
-self.addEventListener('activate', e=>{
-  e.waitUntil(clients.claim());
-});
-self.addEventListener('fetch', e=>{
-  e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
-});
-self.addEventListener('message', e=>{
-  if(!e.data || e.data.type !== 'SHOW_NOTIFICATION') return;
-  const {title, body, tag} = e.data;
-  e.waitUntil(
-    self.registration.showNotification(title, {
-      body: body,
-      tag: tag || 'dr-r',
-      renotify: true,
-      icon: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#FBBF24"/><text x="32" y="46" font-size="40" text-anchor="middle" fill="#1F2937" font-family="Georgia,serif" font-weight="900">R</text></svg>'),
-      badge: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#FBBF24"/></svg>'),
-      vibrate: [200, 100, 200]
-    })
-  );
+const CACHE_NAME='allday-v3';
+self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll([])));});
+self.addEventListener('activate',e=>{e.waitUntil(clients.claim());});
+self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});
+self.addEventListener('message',e=>{
+  if(e.data&&e.data.type==='SHOW_NOTIFICATION'){
+    self.registration.showNotification(e.data.title,{body:e.data.body,tag:e.data.tag||'allday',renotify:true,vibrate:[200,100,200]});
+  }
 });
 `;
-
-// Helper: send notification via SW (waits for controller to be ready)
-async function swNotify(title, body, tag){
-  if(!('Notification' in window)) return;
-  if(Notification.permission !== 'granted') return;
-  if('serviceWorker' in navigator){
-    try{
-      const reg = await navigator.serviceWorker.ready;
-      if(reg && reg.active){
-        reg.active.postMessage({type:'SHOW_NOTIFICATION', title, body, tag: tag||'dr-r'});
-        return;
-      }
-    }catch(_){}
-  }
-  // Fallback to direct Notification API
-  new Notification(title, {body});
-}
-
 if('serviceWorker' in navigator){
-  const swBlob = new Blob([SW_CODE], {type:'application/javascript'});
-  const swUrl  = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swUrl).then(reg=>{
-    // Force immediate activation if waiting
-    if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
-    reg.addEventListener('updatefound',()=>{
-      const nw = reg.installing;
-      if(nw) nw.addEventListener('statechange',()=>{
-        if(nw.state==='installed'&&navigator.serviceWorker.controller) location.reload();
-      });
-    });
-  }).catch(err=>console.warn('SW reg failed:',err));
+  const swBlob=new Blob([SW_CODE],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>{});
 }
 
 // ─── PWA MANIFEST ────────────────────────────────────────────────────────────
@@ -1163,7 +1116,6 @@ let charts={};
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 async function boot(){
   dayjs.extend(window.dayjs_plugin_isSameOrBefore);
-  dayjs.extend(window.dayjs_plugin_isSameOrAfter);
   dayjs.extend(window.dayjs_plugin_relativeTime);
 
   // Default ledger
@@ -3334,72 +3286,54 @@ async function importData(input){
 async function clearAllData(){if(confirm('警告：這將永久刪除所有資料且無法恢復！確定嗎？')){await db.delete();location.reload();}}
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
-async function requestNotifPermission(){
-  if(!('Notification' in window)){toast('此瀏覽器不支援通知');return;}
-  const p=await Notification.requestPermission();
-  if(p==='granted'){
-    updateNotifBanner();
-    setTimeout(()=>swNotify('Dr. R 通知已開啟 🎉','截止前 10 小時將自動提醒您的任務','welcome'),1000);
-  } else {
-    toast('通知權限被拒絕，請在瀏覽器設定手動允許');
-  }
+function requestNotifPermission(){
+  if(!('Notification' in window))return;
+  Notification.requestPermission().then(p=>{ if(p==='granted')updateNotifBanner(); });
 }
 function updateNotifBanner(){
   const b=document.getElementById('notif-banner');
   const g=document.getElementById('notif-granted-bar');
   if(!b||!('Notification' in window)) return;
   const granted=Notification.permission==='granted';
-  // amber banner: show when NOT granted
-  b.style.display=granted?'none':'flex';
-  // green bar: show when granted
-  if(g) g.style.display=granted?'flex':'none';
+  if(granted){ b.classList.add('hidden'); if(g) g.classList.remove('hidden'); }
+  else { b.classList.remove('hidden'); if(g) g.classList.add('hidden'); }
 }
 
-async function testNotification(){
-  if(!('Notification' in window)){toast('此瀏覽器不支援通知');return;}
-  if(Notification.permission==='default'){
-    const p=await Notification.requestPermission();
-    if(p!=='granted'){toast('通知權限被拒絕 ❌');return;}
-    updateNotifBanner();
+function testNotification(){
+  if(Notification.permission!=='granted'){toast('請先開啟通知權限');return;}
+  const msg='這是一則測試通知，Dr. R 通知功能運作正常 ✅';
+  if(navigator.serviceWorker&&navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'Dr. R 測試通知',body:msg,tag:'test-'+Date.now()});
+  } else {
+    new Notification('Dr. R 測試通知',{body:msg});
   }
-  if(Notification.permission!=='granted'){toast('通知已被封鎖，請在瀏覽器設定中手動允許 ⚠️');return;}
-  await swNotify(
-    'Dr. R 測試通知 🔔',
-    '通知功能運作正常！截止前 10 小時將自動提醒。',
-    'test-'+Date.now()
-  );
-  toast('測試通知已發送，請注意手機彈窗 🔔');
+  toast('測試通知已發送 🔔');
 }
-
 function startNotifChecker(){
-  // Run immediately on start, then every 60 seconds
-  _checkNotifs();
-  setInterval(_checkNotifs, 60000);
-}
-
-async function _checkNotifs(){
-  if(!('Notification' in window)) return;
-  if(Notification.permission!=='granted') return;
-  const now=dayjs();
-  let todos;
-  try{ todos=await db.todos.toArray(); }catch(_){ return; }
-  for(const t of todos){
-    if(t.done||!t.dueAt||t.notified) continue;
-    const due=dayjs(t.dueAt);
-    const notifyAt=due.subtract(10,'hour');
-    // Fire if: current time has passed the notifyAt threshold AND deadline not yet expired over 1 day
-    const shouldNotify = !now.isBefore(notifyAt) && now.isBefore(due.add(1,'day'));
-    if(shouldNotify){
-      const hoursLeft=due.diff(now,'hour');
-      const minsLeft=due.diff(now,'minute')%60;
-      let body;
-      if(hoursLeft>0)       body=`「${t.title}」將於 ${hoursLeft} 小時 ${minsLeft} 分後截止`;
-      else if(minsLeft>0)   body=`「${t.title}」即將在 ${minsLeft} 分鐘內截止！`;
-      else                  body=`「${t.title}」已到截止時間`;
-      await swNotify('Dr. R 任務提醒 ⏰', body, 'todo-'+t.id);
-      await db.todos.update(t.id,{notified:true});
+  setInterval(async()=>{
+    if(Notification.permission!=='granted')return;
+    const now=dayjs();
+    const todos=await db.todos.where('done').equals(0).toArray();
+    for(const t of todos){
+      if(t.dueAt&&!t.notified){
+        const due=dayjs(t.dueAt);
+        // Notify 10 hours before deadline (but not if already past)
+        const notifyAt=due.subtract(10,'hour');
+        if(now.isSameOrAfter(notifyAt)&&now.isBefore(due.add(1,'day'))){
+          const hoursLeft=due.diff(now,'hour');
+          const body=hoursLeft>0
+            ?`「${t.title}」將於 ${hoursLeft} 小時後截止`
+            :`「${t.title}」已到截止時間`;
+          if(navigator.serviceWorker&&navigator.serviceWorker.controller){
+            navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'Dr. R 任務提醒',body,tag:'todo-'+t.id});
+          } else {
+            new Notification('Dr. R 任務提醒',{body});
+          }
+          await db.todos.update(t.id,{notified:true});
+        }
+      }
     }
-  }
+  },60000);
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
