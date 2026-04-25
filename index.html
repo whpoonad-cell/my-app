@@ -3,7 +3,7 @@
 <head>
 <!--
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║              AllDay 全能個人助手 v3.0 — 安裝 & 使用教學                      ║
+║              Dr. R 全能生活博士 v3.0 — 安裝 & 使用教學                        ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  【加入 Android 主畫面】                                                     ║
 ║  1. 用 Android Chrome 開啟此 HTML 檔案（本地或伺服器皆可）                   ║
@@ -30,9 +30,9 @@
 <meta name="theme-color" content="#FBBF24">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="AllDay">
-<meta name="description" content="全能個人助手：記帳、待辦、拆帳、習慣、筆記">
-<title>AllDay — 全能個人助手</title>
+<meta name="apple-mobile-web-app-title" content="Dr. R">
+<meta name="description" content="全能生活博士：記帳、待辦、拆帳、習慣、筆記">
+<title>Dr. R — 全能生活博士</title>
 <link rel="manifest" id="manifest-link">
 
 <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
@@ -193,8 +193,12 @@ input[type=number]{ -moz-appearance:textfield; }
 <aside id="desktop-sidebar" class="fixed left-0 top-0 h-full w-[220px] bg-gray-900 z-50 flex-col hidden">
   <div class="p-5 border-b border-white/10">
     <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-xl bg-amber-400 flex items-center justify-center text-gray-900 font-black text-lg">A</div>
-      <div><div class="text-white font-bold text-base leading-tight">AllDay</div><div class="text-gray-400 text-xs">全能個人助手</div></div>
+      <div class="w-9 h-9 rounded-xl bg-amber-400 flex items-center justify-center flex-shrink-0">
+        <svg viewBox="0 0 36 36" width="36" height="36" xmlns="http://www.w3.org/2000/svg">
+          <text x="18" y="26" font-size="22" font-weight="900" text-anchor="middle" fill="#1F2937" font-family="Georgia,serif" letter-spacing="-1">R</text>
+        </svg>
+      </div>
+      <div><div class="text-white font-bold text-base leading-tight">Dr. R</div><div class="text-gray-400 text-xs">全能生活博士</div></div>
     </div>
   </div>
   <nav class="flex-1 py-3 overflow-y-auto" id="desktop-nav">
@@ -446,7 +450,7 @@ input[type=number]{ -moz-appearance:textfield; }
           </div>
         </div>
 
-        <div class="text-center text-xs text-gray-300 py-2">AllDay v3.0 · 資料儲存於本機</div>
+        <div class="text-center text-xs text-gray-300 py-2">Dr. R v3.0 · 資料儲存於本機</div>
       </div>
     </div>
 
@@ -978,7 +982,7 @@ if('serviceWorker' in navigator){
 }
 
 // ─── PWA MANIFEST ────────────────────────────────────────────────────────────
-const mfst={name:'AllDay 全能助手',short_name:'AllDay',description:'記帳、待辦、拆帳、習慣、筆記',start_url:'.',display:'standalone',background_color:'#FFFBEB',theme_color:'#FBBF24',orientation:'portrait-primary',icons:[{src:`data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="80" fill="#FBBF24"/><text x="256" y="340" font-size="280" text-anchor="middle" fill="#1F2937" font-family="sans-serif" font-weight="900">A</text></svg>')}`,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}]};
+const mfst={name:'Dr. R 全能生活博士',short_name:'Dr. R',description:'記帳、待辦、拆帳、習慣、筆記',start_url:'.',display:'standalone',background_color:'#FFFBEB',theme_color:'#FBBF24',orientation:'portrait-primary',icons:[{src:`data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="80" fill="#FBBF24"/><text x="256" y="360" font-size="300" text-anchor="middle" fill="#1F2937" font-family="Georgia,serif" font-weight="900">R</text></svg>')}`,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}]};
 document.getElementById('manifest-link').href=URL.createObjectURL(new Blob([JSON.stringify(mfst)],{type:'application/manifest+json'}));
 
 // ─── DATABASE ─────────────────────────────────────────────────────────────────
@@ -3204,17 +3208,23 @@ function startNotifChecker(){
     for(const t of todos){
       if(t.dueAt&&!t.notified){
         const due=dayjs(t.dueAt);
-        if(due.isSameOrBefore(now)){
-          if(navigator.serviceWorker.controller){
-            navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'任務提醒',body:t.title,tag:'todo-'+t.id});
+        // Notify 10 hours before deadline (but not if already past)
+        const notifyAt=due.subtract(10,'hour');
+        if(now.isSameOrAfter(notifyAt)&&now.isBefore(due.add(1,'day'))){
+          const hoursLeft=due.diff(now,'hour');
+          const body=hoursLeft>0
+            ?`「${t.title}」將於 ${hoursLeft} 小時後截止`
+            :`「${t.title}」已到截止時間`;
+          if(navigator.serviceWorker&&navigator.serviceWorker.controller){
+            navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'Dr. R 任務提醒',body,tag:'todo-'+t.id});
           } else {
-            new Notification('任務提醒',{body:t.title});
+            new Notification('Dr. R 任務提醒',{body});
           }
           await db.todos.update(t.id,{notified:true});
         }
       }
     }
-  },30000);
+  },60000);
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
