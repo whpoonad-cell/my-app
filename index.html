@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -39,6 +40,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/isSameOrBefore.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/isSameOrAfter.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/relativeTime.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -147,10 +149,10 @@ input[type=number]{ -moz-appearance:textfield; }
 .swatch.selected{ border-color:#1F2937; transform:scale(1.2); }
 
 /* Drum roller picker */
-.drum-col{ scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch; }
+.drum-col{ scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch; scroll-behavior:auto; }
 .drum-cell{ height:40px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; color:#9CA3AF; scroll-snap-align:center; cursor:pointer; transition:color .15s,font-size .15s; user-select:none; padding:0 2px; width:100%; }
 .drum-cell.selected{ color:#1F2937; font-size:16px; font-weight:800; }
-.drum-cell.pad{ pointer-events:none; }
+.drum-cell.pad{ pointer-events:none; height:40px; }
 .no-scrollbar{ scrollbar-width:none; }
 .no-scrollbar::-webkit-scrollbar{ display:none; }
 
@@ -233,6 +235,11 @@ input[type=number]{ -moz-appearance:textfield; }
 
     <!-- ─── LEDGER PAGE ─── -->
     <div id="page-ledger" class="page active h-full flex-col">
+      <!-- ⚠️ Near-due reminders strip -->
+      <div id="ledger-urgent-wrap" class="hidden flex-shrink-0 bg-red-50 border-b border-red-100 px-4 py-2.5">
+        <div class="text-[10px] font-black text-red-500 uppercase tracking-wider mb-1.5">⚠️ 近期提醒（24 小時內到期）</div>
+        <div id="ledger-urgent-items" class="flex flex-col gap-1.5"></div>
+      </div>
       <div class="bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 flex-shrink-0">
         <button onclick="openLedgerPicker()" class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold text-sm px-3 py-1.5 rounded-full hover:bg-amber-100 transition-colors">
           <span id="active-ledger-name">載入中...</span><i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
@@ -303,17 +310,6 @@ input[type=number]{ -moz-appearance:textfield; }
 
     <!-- ─── TODO PAGE ─── -->
     <div id="page-todo" class="page h-full flex-col">
-      <div id="notif-banner" class="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center gap-2 flex-shrink-0">
-        <i data-lucide="bell" class="w-4 h-4 text-amber-600 flex-shrink-0"></i>
-        <span class="text-xs text-amber-700 font-semibold flex-1">開啟通知以接收任務提醒</span>
-        <button onclick="requestNotifPermission()" class="text-xs font-bold text-white bg-amber-500 px-3 py-1.5 rounded-full">開啟提醒</button>
-      </div>
-      <!-- Notif granted bar: test button -->
-      <div id="notif-granted-bar" class="hidden bg-green-50 border-b border-green-100 px-4 py-2 flex items-center gap-2 flex-shrink-0">
-        <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-green-500 flex-shrink-0"></i>
-        <span class="text-xs text-green-700 flex-1">通知已開啟 · 截止前 10 小時提醒</span>
-        <button onclick="testNotification()" class="text-xs font-bold text-green-700 bg-green-100 border border-green-200 px-3 py-1 rounded-full hover:bg-green-200 transition-colors">測試通知</button>
-      </div>
       <div class="bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 flex-shrink-0">
         <button onclick="openTodoListPicker()" class="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 font-bold text-sm px-3 py-1.5 rounded-full">
           <span id="active-list-name">全部任務</span><i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
@@ -734,9 +730,9 @@ input[type=number]{ -moz-appearance:textfield; }
           </div>
           <div id="due-preview" class="px-3 py-2 text-sm font-semibold text-gray-700 cursor-pointer" onclick="toggleDuePicker()">尚未設定截止時間</div>
           <div id="due-roller-wrap" class="hidden">
-            <div class="flex border-t border-gray-200" style="height:180px;position:relative;">
-              <!-- Selection highlight -->
-              <div class="absolute left-0 right-0 pointer-events-none z-10" style="top:50%;transform:translateY(-50%);height:40px;background:rgba(251,191,36,.15);border-top:2px solid #FBBF24;border-bottom:2px solid #FBBF24;"></div>
+            <div class="flex border-t border-gray-200" style="height:200px;position:relative;">
+              <!-- Selection highlight — exactly centred: top of box = (200px/2 - 40px/2) = 80px -->
+              <div class="absolute left-0 right-0 pointer-events-none z-10" style="top:80px;height:40px;background:rgba(251,191,36,.18);border-top:2px solid #FBBF24;border-bottom:2px solid #FBBF24;"></div>
               <!-- Year column -->
               <div class="flex-1 border-r border-gray-100 flex flex-col items-center">
                 <div class="text-[9px] font-bold text-gray-400 py-1">年</div>
@@ -1001,19 +997,62 @@ input[type=number]{ -moz-appearance:textfield; }
 
 // ─── SERVICE WORKER ──────────────────────────────────────────────────────────
 const SW_CODE = `
-const CACHE_NAME='allday-v3';
-self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll([])));});
-self.addEventListener('activate',e=>{e.waitUntil(clients.claim());});
-self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});
-self.addEventListener('message',e=>{
-  if(e.data&&e.data.type==='SHOW_NOTIFICATION'){
-    self.registration.showNotification(e.data.title,{body:e.data.body,tag:e.data.tag||'allday',renotify:true,vibrate:[200,100,200]});
-  }
+const CACHE_NAME='dr-r-v1';
+self.addEventListener('install', e=>{
+  self.skipWaiting();
+});
+self.addEventListener('activate', e=>{
+  e.waitUntil(clients.claim());
+});
+self.addEventListener('fetch', e=>{
+  e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
+});
+self.addEventListener('message', e=>{
+  if(!e.data || e.data.type !== 'SHOW_NOTIFICATION') return;
+  const {title, body, tag} = e.data;
+  e.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
+      tag: tag || 'dr-r',
+      renotify: true,
+      icon: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#FBBF24"/><text x="32" y="46" font-size="40" text-anchor="middle" fill="#1F2937" font-family="Georgia,serif" font-weight="900">R</text></svg>'),
+      badge: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#FBBF24"/></svg>'),
+      vibrate: [200, 100, 200]
+    })
+  );
 });
 `;
+
+// Helper: send notification via SW (waits for controller to be ready)
+async function swNotify(title, body, tag){
+  if(!('Notification' in window)) return;
+  if(Notification.permission !== 'granted') return;
+  if('serviceWorker' in navigator){
+    try{
+      const reg = await navigator.serviceWorker.ready;
+      if(reg && reg.active){
+        reg.active.postMessage({type:'SHOW_NOTIFICATION', title, body, tag: tag||'dr-r'});
+        return;
+      }
+    }catch(_){}
+  }
+  // Fallback to direct Notification API
+  new Notification(title, {body});
+}
+
 if('serviceWorker' in navigator){
-  const swBlob=new Blob([SW_CODE],{type:'application/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>{});
+  const swBlob = new Blob([SW_CODE], {type:'application/javascript'});
+  const swUrl  = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl).then(reg=>{
+    // Force immediate activation if waiting
+    if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+    reg.addEventListener('updatefound',()=>{
+      const nw = reg.installing;
+      if(nw) nw.addEventListener('statechange',()=>{
+        if(nw.state==='installed'&&navigator.serviceWorker.controller) location.reload();
+      });
+    });
+  }).catch(err=>console.warn('SW reg failed:',err));
 }
 
 // ─── PWA MANIFEST ────────────────────────────────────────────────────────────
@@ -1116,6 +1155,7 @@ let charts={};
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 async function boot(){
   dayjs.extend(window.dayjs_plugin_isSameOrBefore);
+  dayjs.extend(window.dayjs_plugin_isSameOrAfter);
   dayjs.extend(window.dayjs_plugin_relativeTime);
 
   // Default ledger
@@ -1150,8 +1190,6 @@ async function boot(){
   // navigate() handles header-actions, page activate, nav highlight, AND renderPage
   await navigate('ledger');
   await renderLedgerHeader();
-  updateNotifBanner();
-  startNotifChecker();
   // Run recurring check after initial render
   setTimeout(checkRecurring, 800);
 }
@@ -1238,8 +1276,45 @@ function fmtDate(d){const t=dayjs();const dd=dayjs(d);if(dd.isSame(t,'day'))retu
 function getCat(id){return S.cats.find(c=>c.id===id)||{emoji:'💰',label:'其他',color:'#9CA3AF'};}
 function getCatByEmoji(emoji,type){return S.cats.find(c=>c.emoji===emoji&&c.type===type)||null;}
 
-// ─── RENDER LEDGER ────────────────────────────────────────────────────────────
+// ─── URGENT REMINDERS (Ledger page top strip) ────────────────────────────────
+async function renderUrgentReminders(){
+  const wrap=document.getElementById('ledger-urgent-wrap');
+  const itemsEl=document.getElementById('ledger-urgent-items');
+  if(!wrap||!itemsEl) return;
+
+  const now=dayjs();
+  const in24=now.add(24,'hour');
+
+  // Todos due within 24h and not done
+  const todos=await db.todos.toArray();
+  const urgentTodos=todos.filter(t=>!t.done&&t.dueAt&&dayjs(t.dueAt).isAfter(now)&&dayjs(t.dueAt).isBefore(in24));
+
+  // Countdowns ending within 24h
+  const cds=await db.countdowns.toArray();
+  const urgentCds=cds.filter(c=>{
+    const diff=dayjs(c.targetDate).diff(now,'hour');
+    return diff>=0&&diff<24;
+  });
+
+  const items=[
+    ...urgentTodos.map(t=>({label:t.title,time:dayjs(t.dueAt).format('HH:mm'),type:'todo',id:t.id})),
+    ...urgentCds.map(c=>({label:c.name,time:c.targetDate,type:'cd',id:c.id})),
+  ];
+
+  if(items.length===0){ wrap.classList.add('hidden'); return; }
+
+  wrap.classList.remove('hidden');
+  itemsEl.innerHTML=items.map(it=>`
+    <div class="flex items-center gap-2 cursor-pointer" onclick="${it.type==='todo'?'navigate(\'todo\')':'navigate(\'countdown\')'}">
+      <span class="text-sm">${it.type==='todo'?'📌':'⏳'}</span>
+      <span class="text-xs font-semibold text-red-700 flex-1 truncate">${esc(it.label)}</span>
+      <span class="text-[10px] text-red-400 font-bold flex-shrink-0">${it.time}</span>
+    </div>`).join('');
+}
+
+
 async function renderLedger(){
+  renderUrgentReminders();
   const l=S.ledgers.find(x=>x.id===S.activeLedgerId); if(!l) return;
   const curr=l.currency;
   document.getElementById('tx-currency-prefix').textContent=currSym(curr);
@@ -1548,6 +1623,7 @@ async function renderTodo(){
         </div>
         ${t.note?`<div class="text-xs text-gray-400 mt-1 truncate">${esc(t.note)}</div>`:''}
       </div>
+      ${t.dueAt?`<button onclick="event.stopPropagation();exportTodoICS(${t.id})" title="存入日曆" class="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-amber-50 hover:text-amber-600 transition-colors text-base">📅</button>`:''}
     </div>`;
   }).join('');
 }
@@ -1563,7 +1639,52 @@ async function deleteTodo(){
   else renderTodo();
 }
 
-// ─── RENDER SPLIT ─────────────────────────────────────────────────────────────
+// ─── EXPORT SINGLE TODO TO ICS ────────────────────────────────────────────────
+async function exportTodoICS(id){
+  const t=await db.todos.get(id);
+  if(!t||!t.dueAt){toast('此任務沒有截止日期，無法匯出');return;}
+
+  const due=dayjs(t.dueAt);
+  const fmt=d=>d.utc?d.utc().format('YYYYMMDDTHHmmss')+'Z':d.format('YYYYMMDDTHHmmss');
+  // Use local time format (no Z suffix) for broader calendar compatibility
+  const dtStamp=dayjs().format('YYYYMMDDTHHmmss');
+  const dtStart=due.format('YYYYMMDDTHHmmss');
+  const dtEnd=due.add(30,'minute').format('YYYYMMDDTHHmmss');
+  const uid=`${id}-DrR-App`;
+  const summary=t.title.replace(/[,;\\]/g,' ');
+  const description=(t.note||'').replace(/[,;\\]/g,' ').replace(/\n/g,'\\n');
+
+  const ics=[
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Dr. R App//ZH',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${dtStamp}`,
+    `DTSTART:${dtStart}`,
+    `DTEND:${dtEnd}`,
+    `SUMMARY:${summary}`,
+    description?`DESCRIPTION:${description}`:'',
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Dr. R 任務提醒',
+    'TRIGGER:-PT16H',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n');
+
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`DrR-${t.title.slice(0,20).replace(/\s+/g,'-')}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('已匯出 .ics，可匯入 Outlook / iOS 日曆 📅');
+}
 async function renderSplit(){
   S.groups=await db.groups.toArray();
   const wrap=document.getElementById('split-wrap');
@@ -2567,22 +2688,27 @@ const _drumOpen={open:false};
 function buildDrumCol(id,items,selectedVal){
   const el=document.getElementById(id);
   if(!el) return;
-  // 2 padding cells top + bottom so selected snaps to centre
+  const selVal=parseInt(selectedVal);
+  // 2 padding cells so first and last real items can snap to centre
   el.innerHTML='<div class="drum-cell pad"></div><div class="drum-cell pad"></div>'+
-    items.map(v=>`<div class="drum-cell${String(v)===String(selectedVal)?' selected':''}" onclick="drumTap('${id.replace('drum-','',)}',${v})">${String(v).padStart(2,'0')}</div>`).join('')+
+    items.map(v=>`<div class="drum-cell${v===selVal?' selected':''}" onclick="drumTap('${id.replace('drum-','')}',${v})">${String(v).padStart(2,'0')}</div>`).join('')+
     '<div class="drum-cell pad"></div><div class="drum-cell pad"></div>';
-  // Scroll to selected
-  requestAnimationFrame(()=>{
-    const idx=items.indexOf(parseInt(selectedVal));
-    if(idx>=0) el.scrollTop=(idx)*40;
-  });
+  // Scroll so selected item is in the centre slot (80px from top = 2 pad cells above)
+  const idx=items.indexOf(selVal);
+  if(idx>=0){
+    // Use double rAF to ensure layout is complete before scrolling
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      el.scrollTop=idx*40;
+    }));
+  }
 }
 
 function drumDaysInMonth(y,m){ return new Date(y,m,0).getDate(); }
 
 function initDrumPicker(isoStr){
-  let d=isoStr?dayjs(isoStr):dayjs();
-  if(!isoStr) d=dayjs().add(1,'day').hour(23).minute(59);
+  let d;
+  if(isoStr){ d=dayjs(isoStr); }
+  else { d=dayjs().hour(23).minute(59).second(0); }
   _drum.year=d.year(); _drum.month=d.month()+1; _drum.day=d.date();
   _drum.hour=d.hour(); _drum.minute=d.minute();
   rebuildDrum();
@@ -2697,13 +2823,9 @@ function openTodoModal(id=null){
     document.getElementById('todo-pri-input').value='med';
     if(S.activeTodoListId) document.getElementById('todo-list-input').value=S.activeTodoListId;
     // Default: today at 23:59, picker collapsed
-    initDrumPicker('');  // sets tomorrow 23:59 as default
-    // Override to today 23:59
-    _drum.year=dayjs().year(); _drum.month=dayjs().month()+1; _drum.day=dayjs().date(); _drum.hour=23; _drum.minute=59;
-    rebuildDrum();
+    initDrumPicker('');  // sets today 23:59
     document.getElementById('due-roller-wrap')&&document.getElementById('due-roller-wrap').classList.add('hidden');
     document.getElementById('due-toggle-btn')&&(document.getElementById('due-toggle-btn').textContent='展開選擇器');
-    document.getElementById('due-preview')&&(document.getElementById('due-preview').textContent=dayjs().format('YYYY年M月D日')+' 23:59');
     document.getElementById('todo-note-input').value='';
     document.getElementById('todo-modal-title').textContent='新增任務';
     delBtn.classList.add('hidden');
@@ -3286,56 +3408,6 @@ async function importData(input){
 async function clearAllData(){if(confirm('警告：這將永久刪除所有資料且無法恢復！確定嗎？')){await db.delete();location.reload();}}
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
-function requestNotifPermission(){
-  if(!('Notification' in window))return;
-  Notification.requestPermission().then(p=>{ if(p==='granted')updateNotifBanner(); });
-}
-function updateNotifBanner(){
-  const b=document.getElementById('notif-banner');
-  const g=document.getElementById('notif-granted-bar');
-  if(!b||!('Notification' in window)) return;
-  const granted=Notification.permission==='granted';
-  if(granted){ b.classList.add('hidden'); if(g) g.classList.remove('hidden'); }
-  else { b.classList.remove('hidden'); if(g) g.classList.add('hidden'); }
-}
-
-function testNotification(){
-  if(Notification.permission!=='granted'){toast('請先開啟通知權限');return;}
-  const msg='這是一則測試通知，Dr. R 通知功能運作正常 ✅';
-  if(navigator.serviceWorker&&navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'Dr. R 測試通知',body:msg,tag:'test-'+Date.now()});
-  } else {
-    new Notification('Dr. R 測試通知',{body:msg});
-  }
-  toast('測試通知已發送 🔔');
-}
-function startNotifChecker(){
-  setInterval(async()=>{
-    if(Notification.permission!=='granted')return;
-    const now=dayjs();
-    const todos=await db.todos.where('done').equals(0).toArray();
-    for(const t of todos){
-      if(t.dueAt&&!t.notified){
-        const due=dayjs(t.dueAt);
-        // Notify 10 hours before deadline (but not if already past)
-        const notifyAt=due.subtract(10,'hour');
-        if(now.isSameOrAfter(notifyAt)&&now.isBefore(due.add(1,'day'))){
-          const hoursLeft=due.diff(now,'hour');
-          const body=hoursLeft>0
-            ?`「${t.title}」將於 ${hoursLeft} 小時後截止`
-            :`「${t.title}」已到截止時間`;
-          if(navigator.serviceWorker&&navigator.serviceWorker.controller){
-            navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'Dr. R 任務提醒',body,tag:'todo-'+t.id});
-          } else {
-            new Notification('Dr. R 任務提醒',{body});
-          }
-          await db.todos.update(t.id,{notified:true});
-        }
-      }
-    }
-  },60000);
-}
-
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 window.onload=boot;
 </script>
