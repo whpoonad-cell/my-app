@@ -353,7 +353,6 @@ input[type=number]{ -moz-appearance:textfield; }
         <button onclick="calChangeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
         <span id="cal-month-label" class="text-sm font-bold text-gray-700 flex-1 text-center"></span>
         <button onclick="calChangeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
-        <button id="cal-add-btn" onclick="calAddTodo()" class="hidden w-8 h-8 flex items-center justify-center rounded-lg bg-amber-400 text-gray-900 ml-1" title="在此日新增待辦"><i data-lucide="plus" class="w-4 h-4"></i></button>
       </div>
       <div class="flex-1 panel-scroll pb-6">
         <div id="cal-grid-wrap" class="px-3 pt-2"></div>
@@ -399,7 +398,6 @@ input[type=number]{ -moz-appearance:textfield; }
             <div class="flex border-b border-gray-100">
               <button id="cat-tab-expense" onclick="setCatTab('expense')" class="flex-1 py-2.5 text-xs font-bold text-red-500 border-b-2 border-red-500">💸 支出類別</button>
               <button id="cat-tab-income" onclick="setCatTab('income')" class="flex-1 py-2.5 text-xs font-bold text-gray-400 border-b-2 border-transparent">💰 收入類別</button>
-              <button id="cat-tab-todo" onclick="setCatTab('todo')" class="flex-1 py-2.5 text-xs font-bold text-gray-400 border-b-2 border-transparent">✅ 待辦類別</button>
             </div>
             <div id="cat-mgmt-list" class="divide-y divide-gray-50"></div>
           </div>
@@ -688,7 +686,6 @@ input[type=number]{ -moz-appearance:textfield; }
         <select id="cat-type-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white">
           <option value="expense">💸 支出</option>
           <option value="income">💰 收入</option>
-          <option value="todo">✅ 待辦</option>
         </select>
       </div>
       <div class="flex gap-3">
@@ -1051,10 +1048,7 @@ const DEFAULT_INCOME_CATS=[
   {type:'income',emoji:'💸',label:'退稅',color:'#06B6D4'},{type:'income',emoji:'💰',label:'其他',color:'#9CA3AF'},
 ];
 const DEFAULT_TODO_CATS=[
-  {type:'todo',emoji:'💼',label:'工作',color:'#3B82F6'},{type:'todo',emoji:'🏠',label:'家務',color:'#10B981'},
-  {type:'todo',emoji:'📚',label:'學習',color:'#A855F7'},{type:'todo',emoji:'❤️',label:'健康',color:'#EF4444'},
-  {type:'todo',emoji:'🎯',label:'目標',color:'#FBBF24'},{type:'todo',emoji:'⭐',label:'其他',color:'#9CA3AF'},
-];
+  ];
 const ACC_ICONS=['💵','🏦','🃏','💳','💰','🏧','📱','🌐','🪙','💎','🏠','🎫'];
 const HABIT_ICONS=['🏃','💧','📖','🧘','💊','🥗','🎵','✍️','😴','🏋️','🚴','🌿'];
 const CD_ICONS=['✈️','🎂','🎓','💍','🏖️','🎉','🏆','🌸','🎄','🏠','💼','⭐'];
@@ -1687,11 +1681,6 @@ async function renderCalendar(){
   const daysInMonth=monthStart.daysInMonth();
   const startDow=monthStart.day(); // 0=Sun
 
-  // Show/hide cal-add-btn
-  const addBtn=document.getElementById('cal-add-btn');
-  if(S.calSelectedDate){ addBtn.classList.remove('hidden'); addBtn.classList.add('flex'); }
-  else { addBtn.classList.add('hidden'); addBtn.classList.remove('flex'); }
-
   const dowLabels=['日','一','二','三','四','五','六'];
   let html=`<div class="grid grid-cols-7 mb-1">${dowLabels.map(l=>`<div class="text-center text-[10px] font-bold text-gray-400 py-1">${l}</div>`).join('')}</div>`;
   html+='<div class="grid grid-cols-7 gap-px bg-gray-100 rounded-2xl overflow-hidden border border-gray-100">';
@@ -2053,8 +2042,9 @@ async function renderCatList(){
       </div>
       <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300 cursor-pointer" onclick="openCatEditModal(${c.id})"></i>
     </div>`).join('');
-  ['expense','income','todo'].forEach(t=>{
+  ['expense','income'].forEach(t=>{
     const el=document.getElementById('cat-tab-'+t);
+    if(!el) return;
     const active=S.currentCatTab===t;
     el.className=`flex-1 py-2.5 text-xs font-bold ${active?'text-amber-600 border-b-2 border-amber-500':'text-gray-400 border-b-2 border-transparent'}`;
   });
@@ -2197,6 +2187,7 @@ async function saveTx(){
   const type=S.txType;
 
   if(!amt||!date||!accId){toast('請輸入正確金額和日期');return;}
+  if(type!=='transfer'&&!S.selectedCatEmoji){toast('請選擇交易類別');return;}
 
   const txData={
     ledgerId:S.activeLedgerId, type, amount:amt, date,
@@ -2456,7 +2447,9 @@ function openCatEditModal(id=null){
   } else {
     document.getElementById('cat-emoji-input').value='';
     document.getElementById('cat-name-input').value='';
-    document.getElementById('cat-type-input').value=S.currentCatTab;
+    // Ensure we never default to 'todo' tab (it's been removed)
+    const safeTab=(['expense','income'].includes(S.currentCatTab)?S.currentCatTab:'expense');
+    document.getElementById('cat-type-input').value=safeTab;
     selectCatColor(PALETTE[0]);
     document.getElementById('cat-edit-title').textContent='新增類別';
     delBtn.classList.add('hidden');
