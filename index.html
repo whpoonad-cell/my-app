@@ -146,7 +146,11 @@ input[type=number]{ -moz-appearance:textfield; }
 .swatch{ width:28px; height:28px; border-radius:50%; cursor:pointer; border:2.5px solid transparent; transition:all .15s; }
 .swatch.selected{ border-color:#1F2937; transform:scale(1.2); }
 
-/* Scrollbar hide helper */
+/* Drum roller picker */
+.drum-col{ scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch; }
+.drum-cell{ height:40px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; color:#9CA3AF; scroll-snap-align:center; cursor:pointer; transition:color .15s,font-size .15s; user-select:none; padding:0 2px; width:100%; }
+.drum-cell.selected{ color:#1F2937; font-size:16px; font-weight:800; }
+.drum-cell.pad{ pointer-events:none; }
 .no-scrollbar{ scrollbar-width:none; }
 .no-scrollbar::-webkit-scrollbar{ display:none; }
 
@@ -303,6 +307,12 @@ input[type=number]{ -moz-appearance:textfield; }
         <i data-lucide="bell" class="w-4 h-4 text-amber-600 flex-shrink-0"></i>
         <span class="text-xs text-amber-700 font-semibold flex-1">開啟通知以接收任務提醒</span>
         <button onclick="requestNotifPermission()" class="text-xs font-bold text-white bg-amber-500 px-3 py-1.5 rounded-full">開啟提醒</button>
+      </div>
+      <!-- Notif granted bar: test button -->
+      <div id="notif-granted-bar" class="hidden bg-green-50 border-b border-green-100 px-4 py-2 flex items-center gap-2 flex-shrink-0">
+        <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-green-500 flex-shrink-0"></i>
+        <span class="text-xs text-green-700 flex-1">通知已開啟 · 截止前 10 小時提醒</span>
+        <button onclick="testNotification()" class="text-xs font-bold text-green-700 bg-green-100 border border-green-200 px-3 py-1 rounded-full hover:bg-green-200 transition-colors">測試通知</button>
       </div>
       <div class="bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 flex-shrink-0">
         <button onclick="openTodoListPicker()" class="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 font-bold text-sm px-3 py-1.5 rounded-full">
@@ -716,20 +726,45 @@ input[type=number]{ -moz-appearance:textfield; }
       </div>
       <div>
         <label class="block text-xs font-bold text-gray-500 mb-1.5">截止日期與時間（選填）</label>
-        <div class="flex items-center gap-1.5">
-          <input id="todo-due-year" type="number" min="2000" max="9999" maxlength="4" placeholder="YYYY"
-            class="w-20 border-2 border-gray-200 rounded-xl px-2 py-2.5 text-sm font-semibold inp-amber text-center"
-            oninput="todoDueYearInput(this)">
-          <span class="text-gray-400 font-bold">/</span>
-          <input id="todo-due-md" type="text" maxlength="5" placeholder="MM/DD"
-            class="w-20 border-2 border-gray-200 rounded-xl px-2 py-2.5 text-sm font-semibold inp-amber text-center"
-            oninput="todoDueMdInput(this)" onkeydown="todoDueMdKey(event,this)">
-          <input id="todo-due-time" type="text" maxlength="5" placeholder="HH:MM"
-            class="w-20 border-2 border-gray-200 rounded-xl px-2 py-2.5 text-sm font-semibold inp-amber text-center"
-            oninput="todoDueTimeInput(this)">
-          <button onclick="clearTodoDue()" class="text-gray-300 hover:text-gray-500 text-lg leading-none" title="清除">✕</button>
+        <div id="todo-due-picker" class="bg-gray-50 rounded-2xl border-2 border-gray-200 overflow-hidden">
+          <!-- Drum roller -->
+          <div class="flex items-center justify-between px-3 py-2 border-b border-gray-200">
+            <button onclick="toggleDuePicker()" class="text-xs font-bold text-amber-600" id="due-toggle-btn">展開選擇器</button>
+            <button onclick="clearTodoDue()" class="text-xs text-gray-400 hover:text-red-400">清除</button>
+          </div>
+          <div id="due-preview" class="px-3 py-2 text-sm font-semibold text-gray-700 cursor-pointer" onclick="toggleDuePicker()">尚未設定截止時間</div>
+          <div id="due-roller-wrap" class="hidden">
+            <div class="flex border-t border-gray-200" style="height:180px;position:relative;">
+              <!-- Selection highlight -->
+              <div class="absolute left-0 right-0 pointer-events-none z-10" style="top:50%;transform:translateY(-50%);height:40px;background:rgba(251,191,36,.15);border-top:2px solid #FBBF24;border-bottom:2px solid #FBBF24;"></div>
+              <!-- Year column -->
+              <div class="flex-1 border-r border-gray-100 flex flex-col items-center">
+                <div class="text-[9px] font-bold text-gray-400 py-1">年</div>
+                <div id="drum-year" class="drum-col flex-1 overflow-y-auto no-scrollbar" onscroll="drumScroll(this,'year')"></div>
+              </div>
+              <!-- Month column -->
+              <div class="flex-1 border-r border-gray-100 flex flex-col items-center">
+                <div class="text-[9px] font-bold text-gray-400 py-1">月</div>
+                <div id="drum-month" class="drum-col flex-1 overflow-y-auto no-scrollbar" onscroll="drumScroll(this,'month')"></div>
+              </div>
+              <!-- Day column -->
+              <div class="flex-1 border-r border-gray-100 flex flex-col items-center">
+                <div class="text-[9px] font-bold text-gray-400 py-1">日</div>
+                <div id="drum-day" class="drum-col flex-1 overflow-y-auto no-scrollbar" onscroll="drumScroll(this,'day')"></div>
+              </div>
+              <!-- Hour column -->
+              <div class="flex-1 border-r border-gray-100 flex flex-col items-center">
+                <div class="text-[9px] font-bold text-gray-400 py-1">時</div>
+                <div id="drum-hour" class="drum-col flex-1 overflow-y-auto no-scrollbar" onscroll="drumScroll(this,'hour')"></div>
+              </div>
+              <!-- Minute column -->
+              <div class="flex-1 flex flex-col items-center">
+                <div class="text-[9px] font-bold text-gray-400 py-1">分</div>
+                <div id="drum-minute" class="drum-col flex-1 overflow-y-auto no-scrollbar" onscroll="drumScroll(this,'minute')"></div>
+              </div>
+            </div>
+          </div>
         </div>
-        <p class="text-[10px] text-gray-400 mt-1">年份滿 4 位自動跳至月日，時間請輸入 00:00–23:59</p>
       </div>
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">備註</label><textarea id="todo-note-input" rows="2" placeholder="選填備註..." class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm inp-amber resize-none"></textarea></div>
       <div class="flex gap-3">
@@ -1112,7 +1147,8 @@ async function boot(){
   S.calSelectedDate=null;
   lucide.createIcons();
   updateMonthLabels();
-  await renderPage();
+  // navigate() handles header-actions, page activate, nav highlight, AND renderPage
+  await navigate('ledger');
   await renderLedgerHeader();
   updateNotifBanner();
   startNotifChecker();
@@ -2524,63 +2560,119 @@ async function deleteCat(){
   renderCatList();
 }
 
-// ─── TODO DUE DATE HELPERS ────────────────────────────────────────────────────
+// ─── TODO DUE DATE — DRUM ROLLER ─────────────────────────────────────────────
+const _drum={year:null,month:null,day:null,hour:null,minute:null};
+const _drumOpen={open:false};
+
+function buildDrumCol(id,items,selectedVal){
+  const el=document.getElementById(id);
+  if(!el) return;
+  // 2 padding cells top + bottom so selected snaps to centre
+  el.innerHTML='<div class="drum-cell pad"></div><div class="drum-cell pad"></div>'+
+    items.map(v=>`<div class="drum-cell${String(v)===String(selectedVal)?' selected':''}" onclick="drumTap('${id.replace('drum-','',)}',${v})">${String(v).padStart(2,'0')}</div>`).join('')+
+    '<div class="drum-cell pad"></div><div class="drum-cell pad"></div>';
+  // Scroll to selected
+  requestAnimationFrame(()=>{
+    const idx=items.indexOf(parseInt(selectedVal));
+    if(idx>=0) el.scrollTop=(idx)*40;
+  });
+}
+
+function drumDaysInMonth(y,m){ return new Date(y,m,0).getDate(); }
+
+function initDrumPicker(isoStr){
+  let d=isoStr?dayjs(isoStr):dayjs();
+  if(!isoStr) d=dayjs().add(1,'day').hour(23).minute(59);
+  _drum.year=d.year(); _drum.month=d.month()+1; _drum.day=d.date();
+  _drum.hour=d.hour(); _drum.minute=d.minute();
+  rebuildDrum();
+}
+
+function rebuildDrum(){
+  const years=Array.from({length:11},(_,i)=>dayjs().year()-1+i);
+  buildDrumCol('drum-year',years,_drum.year);
+  buildDrumCol('drum-month',Array.from({length:12},(_,i)=>i+1),_drum.month);
+  const days=drumDaysInMonth(_drum.year,_drum.month);
+  buildDrumCol('drum-day',Array.from({length:days},(_,i)=>i+1),Math.min(_drum.day,days));
+  buildDrumCol('drum-hour',Array.from({length:24},(_,i)=>i),_drum.hour);
+  buildDrumCol('drum-minute',Array.from({length:60},(_,i)=>i),_drum.minute);
+  updateDuePreview();
+}
+
+function drumTap(col,val){
+  _drum[col]=parseInt(val);
+  if(col==='year'||col==='month') rebuildDrum();
+  else{ updateDrumHighlight(col); updateDuePreview(); }
+}
+
+let _drumScrollT={};
+function drumScroll(el,col){
+  clearTimeout(_drumScrollT[col]);
+  _drumScrollT[col]=setTimeout(()=>{
+    const idx=Math.round(el.scrollTop/40);
+    const cells=el.querySelectorAll('.drum-cell:not(.pad)');
+    const cell=cells[idx];
+    if(cell){
+      const val=parseInt(cell.textContent);
+      _drum[col]=val;
+      cells.forEach(c=>c.classList.remove('selected'));
+      cell.classList.add('selected');
+      if(col==='year'||col==='month') rebuildDrum();
+      else updateDuePreview();
+    }
+  },150);
+}
+
+function updateDrumHighlight(col){
+  const el=document.getElementById('drum-'+col);
+  if(!el) return;
+  el.querySelectorAll('.drum-cell:not(.pad)').forEach(c=>{
+    c.classList.toggle('selected',parseInt(c.textContent)===_drum[col]);
+  });
+}
+
+function updateDuePreview(){
+  const el=document.getElementById('due-preview');
+  if(!el) return;
+  const days=drumDaysInMonth(_drum.year,_drum.month);
+  const safeDay=Math.min(_drum.day,days);
+  const d=dayjs(`${_drum.year}-${String(_drum.month).padStart(2,'0')}-${String(safeDay).padStart(2,'0')}T${String(_drum.hour).padStart(2,'0')}:${String(_drum.minute).padStart(2,'0')}`);
+  el.textContent=d.format('YYYY年M月D日 HH:mm');
+  document.getElementById('due-toggle-btn').textContent='收起選擇器';
+}
+
+function toggleDuePicker(){
+  const wrap=document.getElementById('due-roller-wrap');
+  if(!wrap) return;
+  const open=!wrap.classList.contains('hidden');
+  if(open){
+    wrap.classList.add('hidden');
+    document.getElementById('due-toggle-btn').textContent='展開選擇器';
+  } else {
+    wrap.classList.remove('hidden');
+    document.getElementById('due-toggle-btn').textContent='收起選擇器';
+  }
+}
+
 function setTodoDueFields(isoStr){
-  // isoStr: "YYYY-MM-DDTHH:MM" or ""
-  if(!isoStr){ clearTodoDue(); return; }
-  const d=dayjs(isoStr);
-  document.getElementById('todo-due-year').value=d.format('YYYY');
-  document.getElementById('todo-due-md').value=d.format('MM/DD');
-  document.getElementById('todo-due-time').value=d.format('HH:mm');
+  initDrumPicker(isoStr);
+  // If editing and has value, auto-expand
+  if(isoStr) document.getElementById('due-roller-wrap')&&document.getElementById('due-roller-wrap').classList.remove('hidden');
 }
+
 function getTodoDueValue(){
-  const y=document.getElementById('todo-due-year').value.trim();
-  const md=document.getElementById('todo-due-md').value.trim();
-  const t=document.getElementById('todo-due-time').value.trim();
-  if(!y||!md) return '';
-  const time=t||'23:59';
-  return y+'-'+md.replace('/','-')+'T'+time;
+  if(!_drum.year) return '';
+  const days=drumDaysInMonth(_drum.year,_drum.month);
+  const safeDay=Math.min(_drum.day,days);
+  return `${_drum.year}-${String(_drum.month).padStart(2,'0')}-${String(safeDay).padStart(2,'0')}T${String(_drum.hour).padStart(2,'0')}:${String(_drum.minute).padStart(2,'0')}`;
 }
+
 function clearTodoDue(){
-  document.getElementById('todo-due-year').value='';
-  document.getElementById('todo-due-md').value='';
-  document.getElementById('todo-due-time').value='';
-}
-function todoDueYearInput(el){
-  // Strip non-digits, enforce max 4 chars
-  el.value=el.value.replace(/\D/g,'').slice(0,4);
-  if(el.value.length===4){
-    // Auto-advance to MM/DD field
-    document.getElementById('todo-due-md').focus();
-  }
-}
-function todoDueMdInput(el){
-  // Auto-insert slash after 2 digits
-  let v=el.value.replace(/[^\d/]/g,'');
-  if(v.length===2&&!v.includes('/')) v=v+'/';
-  el.value=v.slice(0,5);
-  if(el.value.length===5){
-    document.getElementById('todo-due-time').focus();
-  }
-}
-function todoDueMdKey(e,el){
-  // Backspace on empty md field goes back to year
-  if(e.key==='Backspace'&&el.value===''){
-    document.getElementById('todo-due-year').focus();
-  }
-}
-function todoDueTimeInput(el){
-  // Auto-insert colon after 2 digits, enforce 24h
-  let v=el.value.replace(/[^\d:]/g,'');
-  if(v.length===2&&!v.includes(':')) v=v+':';
-  el.value=v.slice(0,5);
-  // Validate hours 0-23 and minutes 0-59 on complete input
-  if(v.length===5){
-    const [hh,mm]=v.split(':').map(Number);
-    if(hh>23) el.value='23:'+v.slice(3);
-    if(mm>59) el.value=v.slice(0,3)+'59';
-    el.blur();
-  }
+  _drum.year=null; _drum.month=null; _drum.day=null; _drum.hour=null; _drum.minute=null;
+  const el=document.getElementById('due-preview');
+  if(el) el.textContent='尚未設定截止時間';
+  document.getElementById('due-roller-wrap')&&document.getElementById('due-roller-wrap').classList.add('hidden');
+  document.getElementById('due-toggle-btn').textContent='展開選擇器';
 }
 
 // ─── TODO MODAL ───────────────────────────────────────────────────────────────
@@ -2604,10 +2696,14 @@ function openTodoModal(id=null){
     document.getElementById('todo-title-input').value='';
     document.getElementById('todo-pri-input').value='med';
     if(S.activeTodoListId) document.getElementById('todo-list-input').value=S.activeTodoListId;
-    // Default: today at 23:59
-    document.getElementById('todo-due-year').value=dayjs().format('YYYY');
-    document.getElementById('todo-due-md').value=dayjs().format('MM/DD');
-    document.getElementById('todo-due-time').value='23:59';
+    // Default: today at 23:59, picker collapsed
+    initDrumPicker('');  // sets tomorrow 23:59 as default
+    // Override to today 23:59
+    _drum.year=dayjs().year(); _drum.month=dayjs().month()+1; _drum.day=dayjs().date(); _drum.hour=23; _drum.minute=59;
+    rebuildDrum();
+    document.getElementById('due-roller-wrap')&&document.getElementById('due-roller-wrap').classList.add('hidden');
+    document.getElementById('due-toggle-btn')&&(document.getElementById('due-toggle-btn').textContent='展開選擇器');
+    document.getElementById('due-preview')&&(document.getElementById('due-preview').textContent=dayjs().format('YYYY年M月D日')+' 23:59');
     document.getElementById('todo-note-input').value='';
     document.getElementById('todo-modal-title').textContent='新增任務';
     delBtn.classList.add('hidden');
@@ -3196,9 +3292,22 @@ function requestNotifPermission(){
 }
 function updateNotifBanner(){
   const b=document.getElementById('notif-banner');
-  if(!b)return;
-  if(Notification.permission==='granted') b.classList.add('hidden');
-  else b.classList.remove('hidden');
+  const g=document.getElementById('notif-granted-bar');
+  if(!b||!('Notification' in window)) return;
+  const granted=Notification.permission==='granted';
+  if(granted){ b.classList.add('hidden'); if(g) g.classList.remove('hidden'); }
+  else { b.classList.remove('hidden'); if(g) g.classList.add('hidden'); }
+}
+
+function testNotification(){
+  if(Notification.permission!=='granted'){toast('請先開啟通知權限');return;}
+  const msg='這是一則測試通知，Dr. R 通知功能運作正常 ✅';
+  if(navigator.serviceWorker&&navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',title:'Dr. R 測試通知',body:msg,tag:'test-'+Date.now()});
+  } else {
+    new Notification('Dr. R 測試通知',{body:msg});
+  }
+  toast('測試通知已發送 🔔');
 }
 function startNotifChecker(){
   setInterval(async()=>{
