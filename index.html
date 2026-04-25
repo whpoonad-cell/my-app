@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -57,7 +56,7 @@ tailwind.config = {
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
 <style>
-:root { --nav-h:62px; --header-h:56px; --safe-bottom:env(safe-area-inset-bottom,0px); }
+:root { --nav-h:calc(58px + env(safe-area-inset-bottom,0px)); --header-h:56px; }
 *{ -webkit-tap-highlight-color:transparent; box-sizing:border-box; }
 html,body{ height:100%; overflow:hidden; background:#FFFBEB; }
 body{ font-family:'Noto Sans HK','PingFang HK','Helvetica Neue',sans-serif; }
@@ -74,6 +73,11 @@ input[type=number]{ -moz-appearance:textfield; }
 .page{ display:none; animation:pgIn .2s ease; }
 .page.active{ display:flex; flex-direction:column; }
 @keyframes pgIn{ from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* More Menu */
+#more-menu{ animation:menuUp .22s cubic-bezier(.34,1.56,.64,1); }
+@keyframes menuUp{ from{opacity:0;transform:translateX(-50%) translateY(12px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+#more-menu-icon.open{ transform:rotate(45deg); background:#1F2937; color:white; }
 
 .modal-overlay{ position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; justify-content:center; backdrop-filter:blur(3px); animation:fadeIn .2s ease; }
 .modal-overlay.center{ align-items:center; }
@@ -202,6 +206,7 @@ input[type=number]{ -moz-appearance:textfield; }
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="habit" onclick="navigate('habit')"><i data-lucide="repeat" class="w-4 h-4"></i><span class="text-sm font-semibold">習慣</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="countdown" onclick="navigate('countdown')"><i data-lucide="timer" class="w-4 h-4"></i><span class="text-sm font-semibold">倒數</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="notes" onclick="navigate('notes')"><i data-lucide="file-text" class="w-4 h-4"></i><span class="text-sm font-semibold">筆記</span></div>
+    <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="recurring" onclick="navigate('recurring')"><i data-lucide="refresh-cw" class="w-4 h-4"></i><span class="text-sm font-semibold">自動入帳</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="settings" onclick="navigate('settings')"><i data-lucide="settings" class="w-4 h-4"></i><span class="text-sm font-semibold">設定</span></div>
   </nav>
   <div class="p-3 border-t border-white/10">
@@ -356,6 +361,22 @@ input[type=number]{ -moz-appearance:textfield; }
       </div>
     </div>
 
+    <!-- ─── RECURRING PAGE ─── -->
+    <div id="page-recurring" class="page h-full flex-col">
+      <div class="flex-1 panel-scroll px-4 py-4 pb-24">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-base font-black text-gray-900">🔁 自動週期入帳</div>
+            <div class="text-xs text-gray-400 mt-0.5">每月固定扣款，App 啟動時自動新增</div>
+          </div>
+          <button onclick="openRecurringModal()" class="flex items-center gap-1 px-3 py-2 rounded-xl bg-amber-400 text-gray-900 font-bold text-sm">
+            <i data-lucide="plus" class="w-4 h-4"></i> 新增
+          </button>
+        </div>
+        <div id="recurring-list"></div>
+      </div>
+    </div>
+
     <!-- ─── SETTINGS PAGE ─── -->
     <div id="page-settings" class="page h-full flex-col">
       <div class="flex-1 panel-scroll px-4 py-3 pb-24 space-y-5">
@@ -433,19 +454,48 @@ input[type=number]{ -moz-appearance:textfield; }
 
   </div><!-- end pages container -->
 
-  <!-- Bottom Nav — 8 items, compact -->
-  <nav id="bottom-nav" class="bg-white border-t border-gray-100 flex-shrink-0" style="height:var(--nav-h);padding-bottom:var(--safe-bottom)">
-    <div class="flex h-full max-w-lg mx-auto">
+  <!-- Bottom Nav — 5 items + safe area -->
+  <nav id="bottom-nav" class="bg-white border-t border-gray-100 flex-shrink-0" style="padding-bottom:env(safe-area-inset-bottom,0px)">
+    <div class="flex h-[58px] max-w-lg mx-auto">
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400 active" data-page="ledger" onclick="navigate('ledger')"><i data-lucide="book-open" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">明細</span><div class="nav-dot"></div></button>
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="stats" onclick="navigate('stats')"><i data-lucide="bar-chart-2" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">統計</span><div class="nav-dot"></div></button>
+      <!-- More Menu Button (centre) -->
+      <button class="flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400 relative" onclick="toggleMoreMenu()">
+        <div id="more-menu-icon" class="w-9 h-9 rounded-full bg-amber-400 flex items-center justify-center text-gray-900 shadow-md transition-transform">
+          <i data-lucide="grid-2x2" class="w-[18px] h-[18px]"></i>
+        </div>
+        <span class="text-[9px] font-semibold">更多</span>
+      </button>
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="todo" onclick="navigate('todo')"><i data-lucide="check-square" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">待辦</span><div class="nav-dot"></div></button>
       <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="calendar" onclick="navigate('calendar')"><i data-lucide="calendar" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">月曆</span><div class="nav-dot"></div></button>
-      <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="split" onclick="navigate('split')"><i data-lucide="users" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">拆帳</span><div class="nav-dot"></div></button>
-      <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="habit" onclick="navigate('habit')"><i data-lucide="repeat" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">習慣</span><div class="nav-dot"></div></button>
-      <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="countdown" onclick="navigate('countdown')"><i data-lucide="timer" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">倒數</span><div class="nav-dot"></div></button>
-      <button class="nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400" data-page="settings" onclick="navigate('settings')"><i data-lucide="settings" class="w-[18px] h-[18px]"></i><span class="text-[9px] font-semibold">設定</span><div class="nav-dot"></div></button>
     </div>
   </nav>
+</div><!-- end main-content -->
+
+<!-- More Menu Overlay -->
+<div id="more-menu-overlay" class="hidden fixed inset-0 z-[400]" onclick="closeMoreMenu()"></div>
+<div id="more-menu" class="hidden fixed z-[450] bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 w-[220px]"
+     style="bottom:calc(58px + env(safe-area-inset-bottom,0px) + 8px); left:50%; transform:translateX(-50%);">
+  <div class="grid grid-cols-3 gap-2">
+    <button onclick="closeMoreMenu();navigate('split')" class="flex flex-col items-center gap-1.5 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+      <span class="text-2xl">👥</span><span class="text-[10px] font-semibold text-gray-600">拆帳</span>
+    </button>
+    <button onclick="closeMoreMenu();navigate('habit')" class="flex flex-col items-center gap-1.5 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+      <span class="text-2xl">🔄</span><span class="text-[10px] font-semibold text-gray-600">習慣</span>
+    </button>
+    <button onclick="closeMoreMenu();navigate('countdown')" class="flex flex-col items-center gap-1.5 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+      <span class="text-2xl">⏳</span><span class="text-[10px] font-semibold text-gray-600">倒數</span>
+    </button>
+    <button onclick="closeMoreMenu();navigate('notes')" class="flex flex-col items-center gap-1.5 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+      <span class="text-2xl">📝</span><span class="text-[10px] font-semibold text-gray-600">筆記</span>
+    </button>
+    <button onclick="closeMoreMenu();navigate('recurring')" class="flex flex-col items-center gap-1.5 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+      <span class="text-2xl">🔁</span><span class="text-[10px] font-semibold text-gray-600">自動入帳</span>
+    </button>
+    <button onclick="closeMoreMenu();navigate('settings')" class="flex flex-col items-center gap-1.5 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+      <span class="text-2xl">⚙️</span><span class="text-[10px] font-semibold text-gray-600">設定</span>
+    </button>
+  </div>
 </div>
 
 <button id="fab" onclick="onFab()" aria-label="新增"><i data-lucide="plus" class="w-7 h-7"></i></button>
@@ -782,7 +832,7 @@ input[type=number]{ -moz-appearance:textfield; }
             <option value="CNY">¥CNY</option><option value="TWD">NT$</option><option value="GBP">£</option>
             <option value="EUR">€</option><option value="KRW">₩</option><option value="AUD">A$</option><option value="SGD">S$</option>
           </select>
-          <input id="split-amount-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" oninput="updateSplitRows()" class="flex-1 pr-4 py-3 text-2xl font-black text-right border-2 border-gray-200 rounded-xl inp-amber bg-gray-50">
+          <input id="split-amount-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" oninput="updateSplitRows()" class="w-36 pr-4 py-3 text-xl font-black text-right border-2 border-gray-200 rounded-xl inp-amber bg-gray-50 flex-1">
         </div>
       </div>
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">由誰付款</label><select id="split-payer-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select></div>
@@ -885,6 +935,30 @@ input[type=number]{ -moz-appearance:textfield; }
   </div>
 </div>
 
+<!-- Recurring Transaction Modal -->
+<div id="recurring-modal" class="modal-overlay center hidden" onclick="closeIfBdrop(event,'recurring-modal')">
+  <div class="modal-sheet">
+    <div class="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+      <div class="font-black text-gray-900 text-base" id="recurring-modal-title">新增自動入帳</div>
+      <button onclick="closeModal('recurring-modal')" class="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm">✕</button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div><label class="block text-xs font-bold text-gray-500 mb-1.5">名稱</label><input id="rec-name-input" type="text" placeholder="例如：Spotify 會員" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block text-xs font-bold text-gray-500 mb-1.5">金額</label><input id="rec-amount-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
+        <div><label class="block text-xs font-bold text-gray-500 mb-1.5">每月幾號</label><input id="rec-day-input" type="number" min="1" max="31" placeholder="1" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber text-center"></div>
+      </div>
+      <div><label class="block text-xs font-bold text-gray-500 mb-1.5">類別</label><div class="grid grid-cols-5 gap-1.5" id="rec-cat-grid"></div></div>
+      <div><label class="block text-xs font-bold text-gray-500 mb-1.5">帳戶</label><select id="rec-account-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select></div>
+      <div><label class="block text-xs font-bold text-gray-500 mb-1.5">帳本</label><select id="rec-ledger-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select></div>
+      <div class="flex gap-3">
+        <button id="rec-del-btn" onclick="deleteRecurring()" class="hidden flex-none px-4 py-3 rounded-xl bg-red-50 text-red-500 font-bold text-sm">🗑️</button>
+        <button onclick="saveRecurring()" class="flex-1 py-3 rounded-xl bg-amber-400 text-gray-900 font-black">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ════════════════ JAVASCRIPT ════════════════ -->
 <script>
 'use strict';
@@ -955,6 +1029,9 @@ db.version(5).stores({
     if(a.sortOrder===undefined) a.sortOrder=a.id;
   });
 });
+db.version(6).stores({
+  recurring:'++id,name,amount,category,accountId,dayOfMonth,ledgerId,currency,lastRun',
+});
 
 // ─── DEFAULT DATA ─────────────────────────────────────────────────────────────
 const DEFAULT_EXPENSE_CATS=[
@@ -993,6 +1070,7 @@ const S={
   calMonth:null, calSelectedDate:null,
   editingTodoId:null, editingSplitExpId:null, editingCatId:null,
   editingHabitId:null, editingCdId:null, editingNoteId:null, editingGroupId:null,
+  editingRecurringId:null, selectedRecCat:null,
   selectedCat:null, selectedAccIcon:ACC_ICONS[0],
   selectedCatColor:'#FBBF24', selectedHabitIcon:HABIT_ICONS[0],
   selectedHabitColor:'#FBBF24', selectedCdIcon:CD_ICONS[0],
@@ -1040,6 +1118,8 @@ async function boot(){
   await renderLedgerHeader();
   updateNotifBanner();
   startNotifChecker();
+  // Run recurring check after initial render
+  setTimeout(checkRecurring, 800);
 }
 
 async function refreshCache(){
@@ -1052,6 +1132,7 @@ async function refreshCache(){
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 async function navigate(page){
+  closeMoreMenu();
   S.page=page;
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -1061,7 +1142,7 @@ async function navigate(page){
     el.classList.toggle('text-amber-500',a);
     el.classList.toggle('text-gray-400',!a);
   });
-  const titles={ledger:'明細',stats:'統計',todo:'待辦清單',calendar:'月曆',split:'AA 拆帳',habit:'習慣追蹤',countdown:'倒數計時',notes:'靈感筆記',settings:'設定'};
+  const titles={ledger:'明細',stats:'統計',todo:'待辦清單',calendar:'月曆',split:'AA 拆帳',habit:'習慣追蹤',countdown:'倒數計時',notes:'靈感筆記',recurring:'自動週期入帳',settings:'設定'};
   document.getElementById('header-title').textContent=titles[page]||'';
   const ha=document.getElementById('header-actions');
   if(page==='ledger'){
@@ -1072,7 +1153,7 @@ async function navigate(page){
     ha.innerHTML='';
   }
   const fab=document.getElementById('fab');
-  fab.style.display=['ledger','todo','split','habit','countdown','notes'].includes(page)?'flex':'none';
+  fab.style.display=['ledger','todo','split','habit','countdown','notes','recurring'].includes(page)?'flex':'none';
   lucide.createIcons();
   await renderPage();
 }
@@ -1084,6 +1165,7 @@ function onFab(){
   else if(S.page==='habit') openHabitModal();
   else if(S.page==='countdown') openCountdownModal();
   else if(S.page==='notes') openNoteModal();
+  else if(S.page==='recurring') openRecurringModal();
 }
 
 async function renderPage(){
@@ -1095,7 +1177,7 @@ async function renderPage(){
     case 'split': await renderSplit(); break;
     case 'habit': await renderHabit(); break;
     case 'countdown': await renderCountdown(); break;
-    case 'notes': await renderNotes(); break;
+    case 'recurring': await renderRecurring(); break;
     case 'settings': await renderSettings(); break;
   }
 }
@@ -1474,7 +1556,6 @@ async function renderSplit(){
           <button onclick="settleDebt()" class="text-xs bg-green-100 text-green-700 font-bold px-2 py-1 rounded-lg">結清</button>
         </div>`).join('')}
       ${settlement.length>0?`<div class="mt-3 flex gap-2">
-        <button onclick="importSettlementToLedger()" class="flex-1 text-xs bg-amber-50 border border-amber-200 text-amber-700 font-bold py-2 rounded-xl">📒 匯入帳本</button>
         <button onclick="settleAll()" class="flex-1 text-xs bg-green-50 border border-green-200 text-green-700 font-bold py-2 rounded-xl">✅ 全部結清</button>
       </div>`:''}
     </div>
@@ -1571,20 +1652,6 @@ function computeMemberBalances(members,expenses){
 
 async function settleDebt(){ toast('款項已標記結清'); renderSplit(); }
 async function settleAll(){ await db.splitExpenses.where('groupId').equals(S.activeGroupId).modify({settled:true}); toast('全部結清 ✅'); renderSplit(); }
-async function importSettlementToLedger(){
-  const group=S.groups.find(g=>g.id===S.activeGroupId);
-  const expenses=await db.splitExpenses.where('groupId').equals(S.activeGroupId).and(e=>!e.settled).toArray();
-  const settlement=computeSettlement(group.members,expenses);
-  const acc=S.accounts[0]; if(!acc){toast('請先建立帳戶');return;}
-  for(const s of settlement){
-    await db.transactions.add({ledgerId:S.activeLedgerId,type:'expense',amount:s.amount,category:'🤝',accountId:acc.id,toAccountId:null,date:dayjs().format('YYYY-MM-DD'),note:`AA拆帳: ${s.from}→${s.to}`,receipts:[]});
-    await db.accounts.where('id').equals(acc.id).modify(a=>{a.balance-=s.amount;});
-  }
-  S.accounts=await db.accounts.toArray();
-  await settleAll();
-  toast(`已匯入 ${settlement.length} 筆結算 ✅`);
-}
-
 // ─── CALENDAR ─────────────────────────────────────────────────────────────────
 function calChangeMonth(d){
   S.calMonth=dayjs(S.calMonth+'-01').add(d,'month').format('YYYY-MM');
@@ -2919,6 +2986,169 @@ function viewImage(src){
   lb.innerHTML=`<img src="${src}">`;
   lb.onclick=()=>lb.remove();
   document.body.appendChild(lb);
+}
+
+// ─── MORE MENU ────────────────────────────────────────────────────────────────
+let _moreMenuOpen=false;
+function toggleMoreMenu(){
+  _moreMenuOpen=!_moreMenuOpen;
+  const menu=document.getElementById('more-menu');
+  const overlay=document.getElementById('more-menu-overlay');
+  const icon=document.getElementById('more-menu-icon');
+  if(_moreMenuOpen){
+    menu.classList.remove('hidden');
+    overlay.classList.remove('hidden');
+    icon.classList.add('open');
+  } else {
+    menu.classList.add('hidden');
+    overlay.classList.add('hidden');
+    icon.classList.remove('open');
+  }
+}
+function closeMoreMenu(){
+  _moreMenuOpen=false;
+  document.getElementById('more-menu').classList.add('hidden');
+  document.getElementById('more-menu-overlay').classList.add('hidden');
+  document.getElementById('more-menu-icon').classList.remove('open');
+}
+
+// ─── RECURRING TRANSACTIONS ───────────────────────────────────────────────────
+async function checkRecurring(){
+  const rules=await db.recurring.toArray();
+  if(rules.length===0) return;
+  const today=dayjs();
+  const todayDay=today.date();
+  const thisMonth=today.format('YYYY-MM');
+  let added=0;
+  for(const rule of rules){
+    // Skip if not yet reached this month's trigger day
+    if(todayDay<rule.dayOfMonth) continue;
+    // Skip if already ran this month
+    if(rule.lastRun===thisMonth) continue;
+    // Add transaction
+    await db.transactions.add({
+      ledgerId:rule.ledgerId,
+      type:'expense',
+      amount:rule.amount,
+      category:rule.category||'🔁',
+      accountId:rule.accountId,
+      toAccountId:null,
+      date:today.date(rule.dayOfMonth).format('YYYY-MM-DD'),
+      note:'【自動入帳】'+rule.name,
+      receipts:[],
+      sortOrder:Date.now(),
+    });
+    // Deduct account balance
+    const acc=await db.accounts.get(rule.accountId);
+    if(acc) await db.accounts.update(rule.accountId,{balance:(acc.balance||0)-rule.amount});
+    // Mark as ran this month
+    await db.recurring.update(rule.id,{lastRun:thisMonth});
+    added++;
+  }
+  if(added>0){
+    S.accounts=await db.accounts.toArray();
+    toast(`🔁 已自動入帳 ${added} 筆週期扣款`);
+    if(S.page==='ledger') renderLedger();
+  }
+}
+
+async function renderRecurring(){
+  const rules=await db.recurring.toArray();
+  const wrap=document.getElementById('recurring-list');
+  if(rules.length===0){
+    wrap.innerHTML=`<div class="text-center py-16 text-gray-300"><div class="text-5xl mb-3">🔁</div><div class="text-sm font-semibold">尚無自動入帳設定</div><div class="text-xs mt-1 text-gray-300">點擊右上角「新增」建立週期扣款</div></div>`;
+    return;
+  }
+  const l=S.ledgers.find(x=>x.id===S.activeLedgerId); const curr=l?l.currency:'HKD';
+  const accMap={};S.accounts.forEach(a=>{accMap[a.id]=a;});
+  const thisMonth=dayjs().format('YYYY-MM');
+  wrap.innerHTML=rules.map(r=>{
+    const acc=accMap[r.accountId];
+    const ran=r.lastRun===thisMonth;
+    return `<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-3 flex items-center gap-3 cursor-pointer" onclick="openRecurringModal(${r.id})">
+      <div class="w-11 h-11 rounded-full flex items-center justify-center text-xl flex-shrink-0 bg-amber-50">${r.category||'🔁'}</div>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-bold text-gray-800 truncate">${esc(r.name)}</div>
+        <div class="text-xs text-gray-400 mt-0.5">每月 ${r.dayOfMonth} 號 · ${acc?esc(acc.name):'未知帳戶'}</div>
+      </div>
+      <div class="text-right flex-shrink-0">
+        <div class="text-sm font-black text-red-500">-${fmtAmt(r.amount,curr)}</div>
+        <div class="text-[10px] mt-0.5 ${ran?'text-green-500 font-bold':'text-gray-400'}">${ran?'✅ 本月已執行':'⏳ 待執行'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openRecurringModal(id=null){
+  S.editingRecurringId=id;
+  // Populate category grid (expense cats)
+  const cats=S.cats.filter(c=>c.type==='expense').sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id));
+  document.getElementById('rec-cat-grid').innerHTML=cats.map(c=>`
+    <div class="flex flex-col items-center gap-0.5 p-1.5 rounded-xl border-2 cursor-pointer transition-all ${S.selectedRecCat===c.emoji?'border-amber-400 bg-amber-50':'border-gray-100'}"
+      onclick="selectRecCat('${c.emoji}')">
+      <span class="text-xl">${c.emoji}</span>
+      <span class="text-[8px] text-gray-500 truncate w-full text-center">${esc(c.label)}</span>
+    </div>`).join('');
+  // Populate account select
+  const accSel=document.getElementById('rec-account-input');
+  accSel.innerHTML=S.accounts.map(a=>`<option value="${a.id}">${a.icon} ${esc(a.name)}</option>`).join('');
+  // Populate ledger select
+  const ledSel=document.getElementById('rec-ledger-input');
+  ledSel.innerHTML=S.ledgers.map(l=>`<option value="${l.id}">${esc(l.name)} (${l.currency})</option>`).join('');
+  const delBtn=document.getElementById('rec-del-btn');
+  if(id){
+    db.recurring.get(id).then(r=>{
+      document.getElementById('rec-name-input').value=r.name;
+      document.getElementById('rec-amount-input').value=r.amount;
+      document.getElementById('rec-day-input').value=r.dayOfMonth;
+      accSel.value=r.accountId;
+      ledSel.value=r.ledgerId;
+      selectRecCat(r.category||'🔁');
+      document.getElementById('recurring-modal-title').textContent='編輯自動入帳';
+      delBtn.classList.remove('hidden');
+    });
+  } else {
+    document.getElementById('rec-name-input').value='';
+    document.getElementById('rec-amount-input').value='';
+    document.getElementById('rec-day-input').value='1';
+    accSel.value=S.accounts[0]?S.accounts[0].id:'';
+    ledSel.value=S.activeLedgerId||'';
+    selectRecCat(cats[0]?cats[0].emoji:'💰');
+    document.getElementById('recurring-modal-title').textContent='新增自動入帳';
+    delBtn.classList.add('hidden');
+  }
+  openModal('recurring-modal');
+}
+function selectRecCat(emoji){
+  S.selectedRecCat=emoji;
+  document.querySelectorAll('#rec-cat-grid>div').forEach(el=>{
+    const e=el.querySelector('span')?.textContent;
+    el.classList.toggle('border-amber-400',e===emoji);
+    el.classList.toggle('bg-amber-50',e===emoji);
+    el.classList.toggle('border-gray-100',e!==emoji);
+  });
+}
+async function saveRecurring(){
+  const name=document.getElementById('rec-name-input').value.trim();
+  const amount=parseFloat(document.getElementById('rec-amount-input').value)||0;
+  const dayOfMonth=Math.min(28,Math.max(1,parseInt(document.getElementById('rec-day-input').value)||1));
+  const accountId=parseInt(document.getElementById('rec-account-input').value);
+  const ledgerId=parseInt(document.getElementById('rec-ledger-input').value);
+  if(!name||amount<=0){toast('請填寫名稱與金額');return;}
+  const l=S.ledgers.find(x=>x.id===ledgerId);
+  const data={name,amount,category:S.selectedRecCat||'🔁',accountId,dayOfMonth,ledgerId,currency:l?l.currency:'HKD',lastRun:null};
+  if(S.editingRecurringId) await db.recurring.update(S.editingRecurringId,data);
+  else await db.recurring.add(data);
+  closeModal('recurring-modal');
+  toast('已儲存 ✅');
+  renderRecurring();
+}
+async function deleteRecurring(){
+  if(!S.editingRecurringId||!confirm('確定刪除此自動入帳規則？'))return;
+  await db.recurring.delete(S.editingRecurringId);
+  closeModal('recurring-modal');
+  toast('已刪除');
+  renderRecurring();
 }
 
 // ─── DATA SYNC ────────────────────────────────────────────────────────────────
