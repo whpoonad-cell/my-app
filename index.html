@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -762,6 +761,20 @@ input[type=number]{ -moz-appearance:textfield; }
           </div>
         </div>
       </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-500 mb-1.5">📅 提前提醒（匯出日曆時使用）</label>
+        <select id="todo-reminder-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white">
+          <option value="0">不提醒</option>
+          <option value="30">提前 30 分鐘</option>
+          <option value="60">提前 1 小時</option>
+          <option value="120">提前 2 小時</option>
+          <option value="480">提前 8 小時</option>
+          <option value="960" selected>提前 16 小時（預設）</option>
+          <option value="1440">提前 1 天</option>
+          <option value="2880">提前 2 天</option>
+          <option value="10080">提前 1 週</option>
+        </select>
+      </div>
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">備註</label><textarea id="todo-note-input" rows="2" placeholder="選填備註..." class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm inp-amber resize-none"></textarea></div>
       <div class="flex gap-3">
         <button id="todo-del-btn" onclick="deleteTodo()" class="hidden flex-none px-4 py-3 rounded-xl bg-red-50 text-red-500 font-bold text-sm">🗑️</button>
@@ -1501,7 +1514,7 @@ async function renderStatsCharts(txs, curr, start, end, ledgerId){
 
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 
-// ─── TX DRAG-TO-REORDER ───────────────────────────────────────────────────────
+// ─── TX DRAG-TO-REORDER (insert above target) ────────────────────────────────
 let _dragTxId=null;
 function txDragStart(e,id){
   _dragTxId=id;
@@ -1522,11 +1535,18 @@ async function txDrop(e,targetId){
   e.preventDefault();
   document.querySelectorAll('.tx-item').forEach(el=>el.classList.remove('dragging','drag-over'));
   if(_dragTxId===targetId||!_dragTxId) return;
-  const [srcTx,tgtTx]=await Promise.all([db.transactions.get(_dragTxId),db.transactions.get(targetId)]);
-  if(!srcTx||!tgtTx) return;
-  const sO=srcTx.sortOrder??srcTx.id, tO=tgtTx.sortOrder??tgtTx.id;
-  await db.transactions.update(_dragTxId,{sortOrder:tO});
-  await db.transactions.update(targetId,{sortOrder:sO});
+  // Get all visible tx items in current DOM order
+  const allItems=[...document.querySelectorAll('.tx-item')].map(el=>parseInt(el.dataset.id));
+  const srcIdx=allItems.indexOf(_dragTxId);
+  const tgtIdx=allItems.indexOf(targetId);
+  if(srcIdx<0||tgtIdx<0){ _dragTxId=null; return; }
+  // Reorder array: remove src, insert before target
+  allItems.splice(srcIdx,1);
+  const newTgtIdx=allItems.indexOf(targetId);
+  allItems.splice(newTgtIdx,0,_dragTxId);
+  // Assign new sortOrders based on new positions (larger = higher in list since we sort desc)
+  const base=Date.now();
+  await Promise.all(allItems.map((id,i)=>db.transactions.update(id,{sortOrder:base+(allItems.length-i)})));
   _dragTxId=null;
   renderLedger();
 }
@@ -1645,14 +1665,21 @@ async function exportTodoICS(id){
   if(!t||!t.dueAt){toast('此任務沒有截止日期，無法匯出');return;}
 
   const due=dayjs(t.dueAt);
-  const fmt=d=>d.utc?d.utc().format('YYYYMMDDTHHmmss')+'Z':d.format('YYYYMMDDTHHmmss');
-  // Use local time format (no Z suffix) for broader calendar compatibility
+  const reminderMins=t.reminder??960;  // default 16h = 960 min
   const dtStamp=dayjs().format('YYYYMMDDTHHmmss');
   const dtStart=due.format('YYYYMMDDTHHmmss');
   const dtEnd=due.add(30,'minute').format('YYYYMMDDTHHmmss');
   const uid=`${id}-DrR-App`;
   const summary=t.title.replace(/[,;\\]/g,' ');
   const description=(t.note||'').replace(/[,;\\]/g,' ').replace(/\n/g,'\\n');
+  // Build TRIGGER string: 0 = no alarm, else -PTxH or -PTxM
+  const alarmLines=reminderMins>0?[
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Dr. R 任務提醒',
+    reminderMins%60===0?`TRIGGER:-PT${reminderMins/60}H`:`TRIGGER:-PT${reminderMins}M`,
+    'END:VALARM',
+  ]:[];
 
   const ics=[
     'BEGIN:VCALENDAR',
@@ -1667,11 +1694,7 @@ async function exportTodoICS(id){
     `DTEND:${dtEnd}`,
     `SUMMARY:${summary}`,
     description?`DESCRIPTION:${description}`:'',
-    'BEGIN:VALARM',
-    'ACTION:DISPLAY',
-    'DESCRIPTION:Dr. R 任務提醒',
-    'TRIGGER:-PT16H',
-    'END:VALARM',
+    ...alarmLines,
     'END:VEVENT',
     'END:VCALENDAR',
   ].filter(Boolean).join('\r\n');
@@ -2342,11 +2365,14 @@ async function catDrop(e,targetId){
   e.preventDefault();
   document.querySelectorAll('.cat-row').forEach(el=>el.classList.remove('dragging','drag-over'));
   if(_dragCatId===targetId||!_dragCatId) return;
-  const [srcCat,tgtCat]=await Promise.all([db.categories.get(_dragCatId),db.categories.get(targetId)]);
-  if(!srcCat||!tgtCat) return;
-  const sO=srcCat.sortOrder??srcCat.id, tO=tgtCat.sortOrder??tgtCat.id;
-  await db.categories.update(_dragCatId,{sortOrder:tO});
-  await db.categories.update(targetId,{sortOrder:sO});
+  const allItems=[...document.querySelectorAll('.cat-row')].map(el=>parseInt(el.dataset.id));
+  const srcIdx=allItems.indexOf(_dragCatId);
+  const tgtIdx=allItems.indexOf(targetId);
+  if(srcIdx<0||tgtIdx<0){ _dragCatId=null; return; }
+  allItems.splice(srcIdx,1);
+  allItems.splice(allItems.indexOf(targetId),0,_dragCatId);
+  const base=Date.now();
+  await Promise.all(allItems.map((id,i)=>db.categories.update(id,{sortOrder:base+i})));
   _dragCatId=null;
   S.cats=await db.categories.toArray();
   renderCatList();
@@ -2372,11 +2398,14 @@ async function accDrop(e,targetId){
   e.preventDefault();
   document.querySelectorAll('.acc-row').forEach(el=>el.classList.remove('dragging','drag-over'));
   if(_dragAccId===targetId||!_dragAccId) return;
-  const [srcAcc,tgtAcc]=await Promise.all([db.accounts.get(_dragAccId),db.accounts.get(targetId)]);
-  if(!srcAcc||!tgtAcc) return;
-  const sO=srcAcc.sortOrder??srcAcc.id, tO=tgtAcc.sortOrder??tgtAcc.id;
-  await db.accounts.update(_dragAccId,{sortOrder:tO});
-  await db.accounts.update(targetId,{sortOrder:sO});
+  const allItems=[...document.querySelectorAll('.acc-row')].map(el=>parseInt(el.dataset.id));
+  const srcIdx=allItems.indexOf(_dragAccId);
+  const tgtIdx=allItems.indexOf(targetId);
+  if(srcIdx<0||tgtIdx<0){ _dragAccId=null; return; }
+  allItems.splice(srcIdx,1);
+  allItems.splice(allItems.indexOf(targetId),0,_dragAccId);
+  const base=Date.now();
+  await Promise.all(allItems.map((id,i)=>db.accounts.update(id,{sortOrder:base+i})));
   _dragAccId=null;
   S.accounts=await db.accounts.toArray();
   renderSettings();
@@ -2441,7 +2470,9 @@ function selectTxCat(emoji){
 function renderTxAccountSelect(){
   const l=S.ledgers.find(x=>x.id===S.activeLedgerId);
   const curr=l?l.currency:'HKD';
-  const matching=S.accounts.filter(a=>(a.currency||'HKD')===curr);
+  const matching=S.accounts
+    .filter(a=>(a.currency||'HKD')===curr)
+    .slice().sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id));
   const html=matching.length>0
     ? matching.map(a=>`<option value="${a.id}">${a.icon} ${esc(a.name)}</option>`).join('')
     : `<option value="">（無 ${curr} 帳戶，請先新增）</option>`;
@@ -2975,6 +3006,7 @@ function openTodoModal(id=null){
       document.getElementById('todo-pri-input').value=t.priority;
       document.getElementById('todo-list-input').value=t.listId;
       setTodoDueFields(t.dueAt||'');
+      document.getElementById('todo-reminder-input').value=t.reminder??960;
       document.getElementById('todo-note-input').value=t.note||'';
       document.getElementById('todo-modal-title').textContent='編輯任務';
       delBtn.classList.remove('hidden');
@@ -2987,6 +3019,7 @@ function openTodoModal(id=null){
     initDrumPicker('');
     document.getElementById('due-roller-wrap')&&document.getElementById('due-roller-wrap').classList.add('hidden');
     document.getElementById('due-toggle-btn')&&(document.getElementById('due-toggle-btn').textContent='展開選擇器');
+    document.getElementById('todo-reminder-input').value=960;
     document.getElementById('todo-note-input').value='';
     document.getElementById('todo-modal-title').textContent='新增任務';
     delBtn.classList.add('hidden');
@@ -3000,8 +3033,9 @@ async function saveTodo(){
   const listId=parseInt(document.getElementById('todo-list-input').value);
   const dueAt=getTodoDueValue();
   const note=document.getElementById('todo-note-input').value.trim();
+  const reminder=parseInt(document.getElementById('todo-reminder-input').value)||960;
   if(!title)return;
-  const data={title,priority,listId,dueAt,note,done:false};
+  const data={title,priority,listId,dueAt,note,reminder,done:false};
   if(S.editingTodoId){
     const old=await db.todos.get(S.editingTodoId);
     data.done=old.done;
