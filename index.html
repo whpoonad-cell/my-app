@@ -1,30 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-<!--
-╔══════════════════════════════════════════════════════════════════════════════╗
-║              Dr. R 全能生活博士 v3.0 — 安裝 & 使用教學                        ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║  【加入 Android 主畫面】                                                     ║
-║  1. 用 Android Chrome 開啟此 HTML 檔案（本地或伺服器皆可）                   ║
-║  2. 點擊右上角「⋮」三點選單                                                  ║
-║  3. 選擇「加入主畫面」(Add to Home screen)                                   ║
-║  4. 輸入名稱後點「新增」，桌面將出現 App 圖示                                ║
-║  5. 從主畫面啟動即為全螢幕 App 模式，支援完全離線使用                        ║
-║                                                                              ║
-║  【開啟通知權限】                                                             ║
-║  1. 首次進入「待辦」頁面時，點擊「開啟提醒通知」按鈕                         ║
-║  2. 瀏覽器彈出權限請求，選擇「允許」                                         ║
-║  3. 之後設有截止時間的任務將在時間到達時發送系統通知                         ║
-║  4. 若誤點「封鎖」，請到 Chrome 設定 → 網站設定 → 通知 → 重設               ║
-║                                                                              ║
-║  【v3.0 新增功能】                                                            ║
-║  · 類別管理：設定 → 類別管理，可新增/重命名/刪除/設定顏色                    ║
-║  · 習慣追蹤：點擊圓圈打卡，記錄連續天數                                      ║
-║  · 倒數計時：設定目標日期，顯示倒數天數                                      ║
-║  · 靈感筆記：快速記錄文字片段，按時間排序                                    ║
-╚══════════════════════════════════════════════════════════════════════════════╝
--->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <meta name="theme-color" content="#FBBF24">
@@ -510,7 +486,7 @@ input[type=number]{ -moz-appearance:textfield; }
 <button id="fab" onclick="onFab()" aria-label="新增"><i data-lucide="plus" class="w-7 h-7"></i></button>
 <div id="toast"></div>
 
-<!-- ════════════════ MODALS ════════════════ -->
+<!-- MODALS -->
 
 <!-- Add/Edit Transaction -->
 <div id="tx-modal" class="modal-overlay hidden" onclick="closeIfBdrop(event,'tx-modal')">
@@ -550,7 +526,7 @@ input[type=number]{ -moz-appearance:textfield; }
         <textarea id="tx-note" rows="2" placeholder="選填備註..." class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm inp-amber resize-none"></textarea>
       </div>
       <div>
-        <label class="block text-xs font-bold text-gray-500 mb-2">收據照片</label>
+        <label class="block text-xs font-bold text-gray-500 mb-2">照片</label>
         <div class="flex flex-wrap gap-2" id="tx-receipts-wrap">
           <label class="w-[76px] h-[76px] border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-1 text-gray-400 text-xs cursor-pointer hover:border-amber-400 hover:text-amber-500 transition-colors">
             <i data-lucide="camera" class="w-5 h-5"></i><span>新增</span>
@@ -1004,7 +980,7 @@ input[type=number]{ -moz-appearance:textfield; }
   </div>
 </div>
 
-<!-- ════════════════ JAVASCRIPT ════════════════ -->
+<!-- JAVASCRIPT -->
 <script>
 'use strict';
 
@@ -2551,7 +2527,7 @@ async function openTxDetail(id){
       ${t.type==='transfer'?`<div class="flex justify-between text-sm"><span class="text-gray-400">轉入至</span><span class="font-bold text-gray-700">${S.accounts.find(x=>x.id===t.toAccountId)?.name||'--'}</span></div>`:''}
       <div class="flex flex-col text-sm"><span class="text-gray-400 mb-1">備註</span><span class="font-bold text-gray-700">${esc(t.note)||'無'}</span></div>
       ${t.receipts&&t.receipts.length?`
-        <div class="pt-2"><span class="text-gray-400 text-sm">收據</span>
+        <div class="pt-2"><span class="text-gray-400 text-sm">照片</span>
           <div class="flex flex-wrap gap-2 mt-2">${t.receipts.map(r=>`<img src="${r}" class="w-20 h-20 object-cover rounded-xl border border-gray-200" onclick="viewImage('${r}')">`).join('')}</div>
         </div>`:''}
     </div>
