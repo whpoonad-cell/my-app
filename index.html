@@ -2483,6 +2483,13 @@ async function saveTx(){
     await revertTxImpact(old);
     await db.transactions.update(S.editingTxId,txData);
   } else {
+    // New transaction: place at the TOP of its date group by giving it the
+    // highest sortOrder among all transactions on that date + 1
+    const sameDayTxs=await db.transactions
+      .filter(t=>t.ledgerId===S.activeLedgerId&&t.date===date)
+      .toArray();
+    const maxOrder=sameDayTxs.reduce((m,t)=>Math.max(m,t.sortOrder??t.id??0),0);
+    txData.sortOrder=maxOrder+1;
     await db.transactions.add(txData);
   }
   await applyTxImpact(txData);
@@ -3411,7 +3418,12 @@ async function checkRecurring(){
     if(todayDay<rule.dayOfMonth) continue;
     // Skip if already ran this month
     if(rule.lastRun===thisMonth) continue;
-    // Add transaction
+    // Add transaction at the top of its date group
+    const txDate=today.date(rule.dayOfMonth).format('YYYY-MM-DD');
+    const sameDayTxs=await db.transactions
+      .filter(t=>t.ledgerId===rule.ledgerId&&t.date===txDate)
+      .toArray();
+    const maxOrder=sameDayTxs.reduce((m,t)=>Math.max(m,t.sortOrder??t.id??0),0);
     await db.transactions.add({
       ledgerId:rule.ledgerId,
       type:'expense',
@@ -3419,10 +3431,10 @@ async function checkRecurring(){
       category:rule.category||'🔁',
       accountId:rule.accountId,
       toAccountId:null,
-      date:today.date(rule.dayOfMonth).format('YYYY-MM-DD'),
+      date:txDate,
       note:'【自動入帳】'+rule.name,
       receipts:[],
-      sortOrder:Date.now(),
+      sortOrder:maxOrder+1,
     });
     // Deduct account balance
     const acc=await db.accounts.get(rule.accountId);
