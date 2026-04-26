@@ -149,10 +149,11 @@ input[type=number]{ -moz-appearance:textfield; }
 .swatch.selected{ border-color:#1F2937; transform:scale(1.2); }
 
 /* Drum roller picker */
-.drum-col{ scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch; scroll-behavior:auto; }
-.drum-cell{ height:40px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; color:#9CA3AF; scroll-snap-align:center; cursor:pointer; transition:color .15s,font-size .15s; user-select:none; padding:0 2px; width:100%; }
-.drum-cell.selected{ color:#1F2937; font-size:16px; font-weight:800; }
-.drum-cell.pad{ pointer-events:none; height:40px; }
+.drum-col{ scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch; scroll-behavior:auto; overscroll-behavior:contain; }
+.drum-cell{ height:40px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; color:#9CA3AF; scroll-snap-align:center; cursor:pointer; user-select:none; width:100%; transition:color .1s, font-size .1s, font-weight .1s; }
+.drum-cell.selected{ color:#1F2937; font-size:16px; font-weight:900; }
+.drum-cell.pad{ pointer-events:none; visibility:hidden; }
+.drum-cell.disabled{ color:#E5E7EB; pointer-events:none; }
 .no-scrollbar{ scrollbar-width:none; }
 .no-scrollbar::-webkit-scrollbar{ display:none; }
 
@@ -363,6 +364,7 @@ input[type=number]{ -moz-appearance:textfield; }
         <button onclick="calChangeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
         <span id="cal-month-label" class="text-sm font-bold text-gray-700 flex-1 text-center"></span>
         <button onclick="calChangeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+        <button onclick="exportMonthICS()" title="匯出本月行程" class="w-8 h-8 flex items-center justify-center rounded-lg bg-amber-400 text-gray-900 ml-1 text-sm" aria-label="匯出 .ics">📅</button>
       </div>
       <div class="flex-1 panel-scroll pb-6">
         <div id="cal-grid-wrap" class="px-3 pt-2"></div>
@@ -730,33 +732,31 @@ input[type=number]{ -moz-appearance:textfield; }
           </div>
           <div id="due-preview" class="px-3 py-2 text-sm font-semibold text-gray-700 cursor-pointer" onclick="toggleDuePicker()">尚未設定截止時間</div>
           <div id="due-roller-wrap" class="hidden">
-            <div class="flex border-t border-gray-200" style="height:200px;position:relative;">
-              <!-- Selection highlight — exactly centred: top of box = (200px/2 - 40px/2) = 80px -->
-              <div class="absolute left-0 right-0 pointer-events-none z-10" style="top:80px;height:40px;background:rgba(251,191,36,.18);border-top:2px solid #FBBF24;border-bottom:2px solid #FBBF24;"></div>
-              <!-- Year column -->
-              <div class="flex-1 border-r border-gray-100 flex flex-col items-center">
-                <div class="text-[9px] font-bold text-gray-400 py-1">年</div>
-                <div id="drum-year" class="drum-col flex-1 overflow-y-auto no-scrollbar" onscroll="drumScroll(this,'year')"></div>
+            <!-- Column labels row — separate from scroll container -->
+            <div class="flex border-t border-gray-200 bg-gray-50">
+              <div class="flex-1 text-center text-[9px] font-bold text-gray-400 py-1 border-r border-gray-100">年</div>
+              <div class="flex-1 text-center text-[9px] font-bold text-gray-400 py-1 border-r border-gray-100">月</div>
+              <div class="flex-1 text-center text-[9px] font-bold text-gray-400 py-1 border-r border-gray-100">日</div>
+              <div class="flex-1 text-center text-[9px] font-bold text-gray-400 py-1 border-r border-gray-100">時</div>
+              <div class="flex-1 text-center text-[9px] font-bold text-gray-400 py-1">分</div>
+            </div>
+            <!-- Drum columns — exactly 200px, highlight at top:80px (2×40px pads above) -->
+            <div class="flex" style="height:200px;position:relative;overflow:hidden;">
+              <div class="absolute left-0 right-0 pointer-events-none z-10" style="top:80px;height:40px;background:rgba(251,191,36,.2);border-top:2px solid #FBBF24;border-bottom:2px solid #FBBF24;"></div>
+              <div class="flex-1 border-r border-gray-100" style="overflow:hidden;">
+                <div id="drum-year" class="drum-col h-full overflow-y-scroll no-scrollbar" onscroll="drumScroll(this,'year')"></div>
               </div>
-              <!-- Month column -->
-              <div class="flex-1 border-r border-gray-100 flex flex-col items-center">
-                <div class="text-[9px] font-bold text-gray-400 py-1">月</div>
-                <div id="drum-month" class="drum-col flex-1 overflow-y-auto no-scrollbar" onscroll="drumScroll(this,'month')"></div>
+              <div class="flex-1 border-r border-gray-100" style="overflow:hidden;">
+                <div id="drum-month" class="drum-col h-full overflow-y-scroll no-scrollbar" onscroll="drumScroll(this,'month')"></div>
               </div>
-              <!-- Day column -->
-              <div class="flex-1 border-r border-gray-100 flex flex-col items-center">
-                <div class="text-[9px] font-bold text-gray-400 py-1">日</div>
-                <div id="drum-day" class="drum-col flex-1 overflow-y-auto no-scrollbar" onscroll="drumScroll(this,'day')"></div>
+              <div class="flex-1 border-r border-gray-100" style="overflow:hidden;">
+                <div id="drum-day" class="drum-col h-full overflow-y-scroll no-scrollbar" onscroll="drumScroll(this,'day')"></div>
               </div>
-              <!-- Hour column -->
-              <div class="flex-1 border-r border-gray-100 flex flex-col items-center">
-                <div class="text-[9px] font-bold text-gray-400 py-1">時</div>
-                <div id="drum-hour" class="drum-col flex-1 overflow-y-auto no-scrollbar" onscroll="drumScroll(this,'hour')"></div>
+              <div class="flex-1 border-r border-gray-100" style="overflow:hidden;">
+                <div id="drum-hour" class="drum-col h-full overflow-y-scroll no-scrollbar" onscroll="drumScroll(this,'hour')"></div>
               </div>
-              <!-- Minute column -->
-              <div class="flex-1 flex flex-col items-center">
-                <div class="text-[9px] font-bold text-gray-400 py-1">分</div>
-                <div id="drum-minute" class="drum-col flex-1 overflow-y-auto no-scrollbar" onscroll="drumScroll(this,'minute')"></div>
+              <div class="flex-1" style="overflow:hidden;">
+                <div id="drum-minute" class="drum-col h-full overflow-y-scroll no-scrollbar" onscroll="drumScroll(this,'minute')"></div>
               </div>
             </div>
           </div>
@@ -1807,6 +1807,115 @@ function computeMemberBalances(members,expenses){
 
 async function settleDebt(){ toast('款項已標記結清'); renderSplit(); }
 async function settleAll(){ await db.splitExpenses.where('groupId').equals(S.activeGroupId).modify({settled:true}); toast('全部結清 ✅'); renderSplit(); }
+// ─── EXPORT MONTH ICS ─────────────────────────────────────────────────────────
+async function exportMonthICS(){
+  const month=S.calMonth||dayjs().format('YYYY-MM');
+  const monthStart=dayjs(month+'-01');
+  const monthEnd=monthStart.endOf('month');
+  const monthLabel=monthStart.format('YYYY年M月');
+
+  const todos=await db.todos.toArray();
+  const cds=await db.countdowns.toArray();
+
+  // Filter to this month
+  const monthTodos=todos.filter(t=>{
+    if(!t.dueAt) return false;
+    const d=dayjs(t.dueAt);
+    return !d.isBefore(monthStart)&&!d.isAfter(monthEnd);
+  });
+  const monthCds=cds.filter(c=>{
+    if(!c.targetDate) return false;
+    const d=dayjs(c.targetDate);
+    return !d.isBefore(monthStart)&&!d.isAfter(monthEnd);
+  });
+
+  if(monthTodos.length===0&&monthCds.length===0){
+    toast(`${monthLabel} 無可匯出的事項`);
+    return;
+  }
+
+  const dtStamp=dayjs().format('YYYYMMDDTHHmmss');
+
+  function makeEvent(uid, summary, description, dtStart, dtEnd){
+    const lines=[
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${dtStamp}`,
+      `DTSTART:${dtStart}`,
+      `DTEND:${dtEnd}`,
+      `SUMMARY:${summary.replace(/[,;\\]/g,' ')}`,
+    ];
+    if(description) lines.push(`DESCRIPTION:${description.replace(/[,;\\]/g,' ').replace(/\n/g,'\\n')}`);
+    lines.push(
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Dr. R 提醒',
+      'TRIGGER:-PT16H',
+      'END:VALARM',
+      'END:VEVENT',
+    );
+    return lines.join('\r\n');
+  }
+
+  const events=[];
+
+  // Todos
+  for(const t of monthTodos){
+    const due=dayjs(t.dueAt);
+    const dtStart=due.format('YYYYMMDDTHHmmss');
+    const dtEnd=due.add(30,'minute').format('YYYYMMDDTHHmmss');
+    events.push(makeEvent(
+      `todo-${t.id}-DrR`,
+      (t.done?'✅ ':'')+t.title,
+      t.note||'',
+      dtStart,
+      dtEnd
+    ));
+  }
+
+  // Countdowns — all-day events on target date
+  for(const c of monthCds){
+    const date=dayjs(c.targetDate);
+    const dtStart=date.format('YYYYMMDD');   // DATE format = all-day
+    const dtEnd=date.add(1,'day').format('YYYYMMDD');
+    const lines=[
+      'BEGIN:VEVENT',
+      `UID:cd-${c.id}-DrR`,
+      `DTSTAMP:${dtStamp}`,
+      `DTSTART;VALUE=DATE:${dtStart}`,
+      `DTEND;VALUE=DATE:${dtEnd}`,
+      `SUMMARY:⏳ ${(c.name).replace(/[,;\\]/g,' ')}`,
+      `DESCRIPTION:倒數計時截止日`,
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Dr. R 倒數提醒',
+      'TRIGGER:-PT16H',
+      'END:VALARM',
+      'END:VEVENT',
+    ].join('\r\n');
+    events.push(lines);
+  }
+
+  const ics=[
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Dr. R App//ZH',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    ...events,
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`DrR-${month}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`已匯出 ${monthLabel} ${events.length} 個事項 📅`);
+}
+
 // ─── CALENDAR ─────────────────────────────────────────────────────────────────
 function calChangeMonth(d){
   S.calMonth=dayjs(S.calMonth+'-01').add(d,'month').format('YYYY-MM');
@@ -2683,122 +2792,174 @@ async function deleteCat(){
 
 // ─── TODO DUE DATE — DRUM ROLLER ─────────────────────────────────────────────
 const _drum={year:null,month:null,day:null,hour:null,minute:null};
-const _drumOpen={open:false};
+let _drumScrollT={};
 
-function buildDrumCol(id,items,selectedVal){
-  const el=document.getElementById(id);
+/* Returns true if the selected date is today */
+function _drumIsToday(){
+  const now=dayjs();
+  return _drum.year===now.year()&&_drum.month===(now.month()+1)&&_drum.day===now.date();
+}
+function _drumIsSameMonth(){
+  const now=dayjs();
+  return _drum.year===now.year()&&_drum.month===(now.month()+1);
+}
+function _drumIsSameYear(){
+  return _drum.year===dayjs().year();
+}
+function drumDaysInMonth(y,m){ return new Date(y,m,0).getDate(); }
+
+/* Build one column. items = array of valid ints. selected = int. */
+function buildDrumCol(colId, items, selected){
+  const el=document.getElementById(colId);
   if(!el) return;
-  const selVal=parseInt(selectedVal);
-  // 2 padding cells so first and last real items can snap to centre
-  el.innerHTML='<div class="drum-cell pad"></div><div class="drum-cell pad"></div>'+
-    items.map(v=>`<div class="drum-cell${v===selVal?' selected':''}" onclick="drumTap('${id.replace('drum-','')}',${v})">${String(v).padStart(2,'0')}</div>`).join('')+
-    '<div class="drum-cell pad"></div><div class="drum-cell pad"></div>';
-  // Scroll so selected item is in the centre slot (80px from top = 2 pad cells above)
-  const idx=items.indexOf(selVal);
-  if(idx>=0){
-    // Use double rAF to ensure layout is complete before scrolling
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      el.scrollTop=idx*40;
-    }));
+  const pad='<div class="drum-cell pad">·</div>';
+  el.innerHTML= pad+pad +
+    items.map(v=>`<div class="drum-cell${v===selected?' selected':''}" onclick="drumTap('${colId.replace('drum-','')}',${v})">${String(v).padStart(2,'0')}</div>`).join('') +
+    pad+pad;
+  // scrollTop: 2 pads above = 80px already scrolled, then idx more cells
+  const idx=items.indexOf(selected);
+  const target=idx>=0 ? idx*40 : 0;
+  // Immediate set (no animation so it's instant on open)
+  el.scrollTop=target;
+  // Belt-and-suspenders: one rAF to catch any flex relayout
+  requestAnimationFrame(()=>{ el.scrollTop=target; });
+}
+
+function rebuildDrum(){
+  const now=dayjs();
+  const nowY=now.year(), nowM=now.month()+1, nowD=now.date(), nowH=now.hour(), nowMin=now.minute();
+
+  // ── Year: current year up to +5
+  const years=Array.from({length:6},(_,i)=>nowY+i);
+  if(!years.includes(_drum.year)) _drum.year=nowY;
+  buildDrumCol('drum-year', years, _drum.year);
+
+  // ── Month: if same year, only this month onwards
+  const minM=(_drum.year===nowY)?nowM:1;
+  const months=Array.from({length:12-minM+1},(_,i)=>minM+i);
+  if(_drum.month<minM) _drum.month=minM;
+  buildDrumCol('drum-month', months, _drum.month);
+
+  // ── Day: if same year+month, only today onwards
+  const daysInMonth=drumDaysInMonth(_drum.year,_drum.month);
+  const minD=(_drum.year===nowY&&_drum.month===nowM)?nowD:1;
+  const days=Array.from({length:daysInMonth-minD+1},(_,i)=>minD+i);
+  if(_drum.day<minD) _drum.day=minD;
+  if(_drum.day>daysInMonth) _drum.day=daysInMonth;
+  buildDrumCol('drum-day', days, _drum.day);
+
+  // ── Hour: if today is selected, only current hour onwards
+  const isToday=_drum.year===nowY&&_drum.month===nowM&&_drum.day===nowD;
+  const minH=isToday?nowH:0;
+  const hours=Array.from({length:24-minH},(_,i)=>minH+i);
+  if(_drum.hour<minH) _drum.hour=minH;
+  buildDrumCol('drum-hour', hours, _drum.hour);
+
+  // ── Minute: if today + same hour, only current minute+1 onwards; else 0-59
+  const sameHour=isToday&&_drum.hour===nowH;
+  const minMin=sameHour?nowMin+1:0;
+  const finalMinMin=Math.min(minMin,59);
+  const minutes=Array.from({length:60-finalMinMin},(_,i)=>finalMinMin+i);
+  if(_drum.minute<finalMinMin) _drum.minute=finalMinMin;
+  buildDrumCol('drum-minute', minutes, _drum.minute);
+
+  updateDuePreview();
+}
+
+function drumTap(col, val){
+  _drum[col]=parseInt(val);
+  // Year/month/day changes may invalidate later columns → full rebuild
+  if(['year','month','day'].includes(col)) rebuildDrum();
+  else{
+    // Hour change may invalidate minutes
+    if(col==='hour') rebuildDrum();
+    else updateDuePreview();
   }
 }
 
-function drumDaysInMonth(y,m){ return new Date(y,m,0).getDate(); }
+function drumScroll(el, col){
+  clearTimeout(_drumScrollT[col]);
+  _drumScrollT[col]=setTimeout(()=>{
+    const idx=Math.round(el.scrollTop/40);
+    const cells=[...el.querySelectorAll('.drum-cell:not(.pad)')];
+    const cell=cells[Math.min(idx, cells.length-1)];
+    if(!cell) return;
+    const val=parseInt(cell.textContent);
+    if(isNaN(val)) return;
+    _drum[col]=val;
+    cells.forEach(c=>c.classList.remove('selected'));
+    cell.classList.add('selected');
+    // Snap scroll to exact position
+    el.scrollTop=idx*40;
+    if(['year','month','day','hour'].includes(col)) rebuildDrum();
+    else updateDuePreview();
+  }, 120);
+}
+
+function updateDuePreview(){
+  const el=document.getElementById('due-preview');
+  if(!el||!_drum.year) return;
+  const d=dayjs(`${_drum.year}-${String(_drum.month).padStart(2,'0')}-${String(_drum.day).padStart(2,'0')}T${String(_drum.hour).padStart(2,'0')}:${String(_drum.minute).padStart(2,'0')}`);
+  el.textContent=d.format('YYYY年M月D日（dd）HH:mm');
+}
 
 function initDrumPicker(isoStr){
+  const now=dayjs();
   let d;
-  if(isoStr){ d=dayjs(isoStr); }
-  else { d=dayjs().hour(23).minute(59).second(0); }
+  if(isoStr){
+    d=dayjs(isoStr);
+    // If stored value is already past, clamp to now+1min
+    if(d.isBefore(now)) d=now.add(1,'minute');
+  } else {
+    // Default: today 23:59, unless 23:59 already passed → tomorrow 23:59
+    d=now.hour(23).minute(59).second(0);
+    if(d.isBefore(now)) d=now.add(1,'day').hour(23).minute(59).second(0);
+  }
   _drum.year=d.year(); _drum.month=d.month()+1; _drum.day=d.date();
   _drum.hour=d.hour(); _drum.minute=d.minute();
   rebuildDrum();
 }
 
-function rebuildDrum(){
-  const years=Array.from({length:11},(_,i)=>dayjs().year()-1+i);
-  buildDrumCol('drum-year',years,_drum.year);
-  buildDrumCol('drum-month',Array.from({length:12},(_,i)=>i+1),_drum.month);
-  const days=drumDaysInMonth(_drum.year,_drum.month);
-  buildDrumCol('drum-day',Array.from({length:days},(_,i)=>i+1),Math.min(_drum.day,days));
-  buildDrumCol('drum-hour',Array.from({length:24},(_,i)=>i),_drum.hour);
-  buildDrumCol('drum-minute',Array.from({length:60},(_,i)=>i),_drum.minute);
-  updateDuePreview();
+function setTodoDueFields(isoStr){
+  initDrumPicker(isoStr);
+  if(isoStr){
+    const wrap=document.getElementById('due-roller-wrap');
+    if(wrap) wrap.classList.remove('hidden');
+    const btn=document.getElementById('due-toggle-btn');
+    if(btn) btn.textContent='收起選擇器';
+  }
 }
 
-function drumTap(col,val){
-  _drum[col]=parseInt(val);
-  if(col==='year'||col==='month') rebuildDrum();
-  else{ updateDrumHighlight(col); updateDuePreview(); }
+function getTodoDueValue(){
+  if(!_drum.year) return '';
+  return `${_drum.year}-${String(_drum.month).padStart(2,'0')}-${String(_drum.day).padStart(2,'0')}T${String(_drum.hour).padStart(2,'0')}:${String(_drum.minute).padStart(2,'0')}`;
 }
 
-let _drumScrollT={};
-function drumScroll(el,col){
-  clearTimeout(_drumScrollT[col]);
-  _drumScrollT[col]=setTimeout(()=>{
-    const idx=Math.round(el.scrollTop/40);
-    const cells=el.querySelectorAll('.drum-cell:not(.pad)');
-    const cell=cells[idx];
-    if(cell){
-      const val=parseInt(cell.textContent);
-      _drum[col]=val;
-      cells.forEach(c=>c.classList.remove('selected'));
-      cell.classList.add('selected');
-      if(col==='year'||col==='month') rebuildDrum();
-      else updateDuePreview();
-    }
-  },150);
-}
-
-function updateDrumHighlight(col){
-  const el=document.getElementById('drum-'+col);
-  if(!el) return;
-  el.querySelectorAll('.drum-cell:not(.pad)').forEach(c=>{
-    c.classList.toggle('selected',parseInt(c.textContent)===_drum[col]);
-  });
-}
-
-function updateDuePreview(){
+function clearTodoDue(){
+  _drum.year=null;
   const el=document.getElementById('due-preview');
-  if(!el) return;
-  const days=drumDaysInMonth(_drum.year,_drum.month);
-  const safeDay=Math.min(_drum.day,days);
-  const d=dayjs(`${_drum.year}-${String(_drum.month).padStart(2,'0')}-${String(safeDay).padStart(2,'0')}T${String(_drum.hour).padStart(2,'0')}:${String(_drum.minute).padStart(2,'0')}`);
-  el.textContent=d.format('YYYY年M月D日 HH:mm');
-  document.getElementById('due-toggle-btn').textContent='收起選擇器';
+  if(el) el.textContent='尚未設定截止時間';
+  const wrap=document.getElementById('due-roller-wrap');
+  if(wrap) wrap.classList.add('hidden');
+  const btn=document.getElementById('due-toggle-btn');
+  if(btn) btn.textContent='展開選擇器';
 }
 
 function toggleDuePicker(){
   const wrap=document.getElementById('due-roller-wrap');
   if(!wrap) return;
-  const open=!wrap.classList.contains('hidden');
-  if(open){
+  const isOpen=!wrap.classList.contains('hidden');
+  if(isOpen){
     wrap.classList.add('hidden');
     document.getElementById('due-toggle-btn').textContent='展開選擇器';
   } else {
+    // Init if not yet set
+    if(!_drum.year) initDrumPicker('');
     wrap.classList.remove('hidden');
     document.getElementById('due-toggle-btn').textContent='收起選擇器';
+    // Re-scroll after display:block kicks in
+    requestAnimationFrame(()=>rebuildDrum());
   }
-}
-
-function setTodoDueFields(isoStr){
-  initDrumPicker(isoStr);
-  // If editing and has value, auto-expand
-  if(isoStr) document.getElementById('due-roller-wrap')&&document.getElementById('due-roller-wrap').classList.remove('hidden');
-}
-
-function getTodoDueValue(){
-  if(!_drum.year) return '';
-  const days=drumDaysInMonth(_drum.year,_drum.month);
-  const safeDay=Math.min(_drum.day,days);
-  return `${_drum.year}-${String(_drum.month).padStart(2,'0')}-${String(safeDay).padStart(2,'0')}T${String(_drum.hour).padStart(2,'0')}:${String(_drum.minute).padStart(2,'0')}`;
-}
-
-function clearTodoDue(){
-  _drum.year=null; _drum.month=null; _drum.day=null; _drum.hour=null; _drum.minute=null;
-  const el=document.getElementById('due-preview');
-  if(el) el.textContent='尚未設定截止時間';
-  document.getElementById('due-roller-wrap')&&document.getElementById('due-roller-wrap').classList.add('hidden');
-  document.getElementById('due-toggle-btn').textContent='展開選擇器';
 }
 
 // ─── TODO MODAL ───────────────────────────────────────────────────────────────
@@ -2822,8 +2983,8 @@ function openTodoModal(id=null){
     document.getElementById('todo-title-input').value='';
     document.getElementById('todo-pri-input').value='med';
     if(S.activeTodoListId) document.getElementById('todo-list-input').value=S.activeTodoListId;
-    // Default: today at 23:59, picker collapsed
-    initDrumPicker('');  // sets today 23:59
+    // Default: today at 23:59 (or tomorrow if 23:59 already passed)
+    initDrumPicker('');
     document.getElementById('due-roller-wrap')&&document.getElementById('due-roller-wrap').classList.add('hidden');
     document.getElementById('due-toggle-btn')&&(document.getElementById('due-toggle-btn').textContent='展開選擇器');
     document.getElementById('todo-note-input').value='';
