@@ -1424,13 +1424,16 @@ async function renderLedger(){
   document.getElementById('account-chips-wrap').innerHTML=matchingAccs.length===0
     ?`<div class="text-xs text-gray-400 italic py-2">此帳本（${curr}）尚無對應帳戶</div>`
     :matchingAccs.map(a=>`
-    <div class="flex-shrink-0 bg-white rounded-xl border border-gray-200 px-3 py-2 flex items-center gap-2 shadow-sm">
+    <div class="flex-shrink-0 bg-white rounded-xl border-2 ${S.txAccFilter===a.id?'border-amber-400 bg-amber-50':'border-gray-200'} px-3 py-2 flex items-center gap-2 shadow-sm cursor-pointer transition-colors" onclick="setTxAccFilter(${a.id})">
       <span class="text-base">${a.icon}</span>
       <div>
         <div class="text-xs text-gray-400 font-semibold leading-tight">${esc(a.name)}</div>
         <div class="text-sm font-black ${(a.balance||0)<0?'text-red-500':'text-gray-800'}">${(a.balance||0)<0?'-':''}${fmtAmt(Math.abs(a.balance||0),curr)}</div>
       </div>
-    </div>`).join('');
+    </div>`).join('')+
+    `<div class="flex-shrink-0 bg-white rounded-xl border-2 ${S.txAccFilter===null?'border-amber-400 bg-amber-50':'border-gray-200'} px-3 py-2 flex items-center shadow-sm cursor-pointer transition-colors" onclick="setTxAccFilter(null)">
+      <span class="text-xs font-bold ${S.txAccFilter===null?'text-amber-700':'text-gray-400'}">全部帳戶</span>
+    </div>`;
 
   let filtered=txs;
   if(S.txFilter!=='all') filtered=txs.filter(t=>t.type===S.txFilter);
