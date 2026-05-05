@@ -123,7 +123,9 @@ input[type=number]{ -moz-appearance:textfield; }
 .swatch{ width:28px; height:28px; border-radius:50%; cursor:pointer; border:2.5px solid transparent; transition:all .15s; }
 .swatch.selected{ border-color:#1F2937; transform:scale(1.2); }
 
-/* Drum roller picker */
+/* Calculator */
+.calc-btn{ padding:12px 4px; border-radius:12px; background:#F9FAFB; font-size:15px; font-weight:700; color:#374151; cursor:pointer; border:1.5px solid #E5E7EB; transition:background .12s; text-align:center; }
+.calc-btn:active{ background:#FEF3C7; }
 .drum-col{ scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch; scroll-behavior:auto; overscroll-behavior:contain; }
 .drum-cell{ height:40px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; color:#9CA3AF; scroll-snap-align:center; cursor:pointer; user-select:none; width:100%; transition:color .1s, font-size .1s, font-weight .1s; }
 .drum-cell.selected{ color:#1F2937; font-size:16px; font-weight:900; }
@@ -191,7 +193,7 @@ input[type=number]{ -moz-appearance:textfield; }
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="split" onclick="navigate('split')"><i data-lucide="users" class="w-4 h-4"></i><span class="text-sm font-semibold">拆帳</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="habit" onclick="navigate('habit')"><i data-lucide="repeat" class="w-4 h-4"></i><span class="text-sm font-semibold">習慣</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="countdown" onclick="navigate('countdown')"><i data-lucide="timer" class="w-4 h-4"></i><span class="text-sm font-semibold">倒數</span></div>
-    <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="notes" onclick="navigate('notes')"><i data-lucide="file-text" class="w-4 h-4"></i><span class="text-sm font-semibold">筆記</span></div>
+    <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="notes" onclick="navigate('notes')"><i data-lucide="link" class="w-4 h-4"></i><span class="text-sm font-semibold">萬能入口</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="recurring" onclick="navigate('recurring')"><i data-lucide="refresh-cw" class="w-4 h-4"></i><span class="text-sm font-semibold">自動入帳</span></div>
     <div class="desk-nav-item px-4 py-3 flex items-center gap-3 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg mx-2" data-page="settings" onclick="navigate('settings')"><i data-lucide="settings" class="w-4 h-4"></i><span class="text-sm font-semibold">設定</span></div>
   </nav>
@@ -278,8 +280,9 @@ input[type=number]{ -moz-appearance:textfield; }
           <canvas id="bar-chart" style="max-height:180px"></canvas>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <div class="text-sm font-bold text-gray-700 mb-3">📉 近 6 個月收支</div>
-          <canvas id="line-chart" style="max-height:180px"></canvas>
+          <div class="text-sm font-bold text-gray-700 mb-3">📈 近 6 個月結餘趨勢</div>
+          <canvas id="line-chart" style="max-height:200px"></canvas>
+          <div id="line-legend" class="mt-2 flex flex-wrap gap-3"></div>
         </div>
       </div>
     </div>
@@ -308,6 +311,11 @@ input[type=number]{ -moz-appearance:textfield; }
         </button>
         <button onclick="openNewGroupModal()" class="ml-auto text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"><i data-lucide="plus" class="w-3.5 h-3.5"></i>新群組</button>
       </div>
+      <div id="split-self-bar" class="hidden bg-purple-50 border-b border-purple-100 px-4 py-2 flex items-center gap-2 flex-shrink-0">
+        <span class="text-xs font-bold text-purple-600 flex-shrink-0">👤 本人：</span>
+        <select id="split-self-select" onchange="onSplitSelfChange(this.value)" class="flex-1 text-xs font-semibold border border-purple-200 rounded-lg px-2 py-1.5 bg-white text-purple-700 inp-amber"></select>
+        <span class="text-xs text-purple-500 font-bold" id="split-self-total"></span>
+      </div>
       <div class="flex-1 panel-scroll px-4 py-3 pb-24" id="split-wrap"></div>
     </div>
 
@@ -321,16 +329,9 @@ input[type=number]{ -moz-appearance:textfield; }
       <div class="flex-1 panel-scroll px-4 py-3 pb-24" id="countdown-wrap"></div>
     </div>
 
-    <!-- ─── NOTES PAGE ─── -->
+    <!-- ─── LINKS PAGE (formerly notes) ─── -->
     <div id="page-notes" class="page h-full flex-col">
-      <!-- Quick input -->
-      <div class="bg-white border-b border-gray-100 px-4 py-3 flex-shrink-0">
-        <div class="flex gap-2">
-          <textarea id="quick-note-input" rows="2" placeholder="快速記錄靈感..." class="flex-1 border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm inp-amber resize-none"></textarea>
-          <button onclick="saveQuickNote()" class="self-end px-4 py-2.5 bg-amber-400 text-gray-900 font-black text-sm rounded-xl hover:bg-amber-500 transition-colors">記下</button>
-        </div>
-      </div>
-      <div class="flex-1 panel-scroll px-4 py-3 pb-24" id="notes-wrap"></div>
+      <div class="flex-1 panel-scroll px-4 py-4 pb-24" id="links-wrap"></div>
     </div>
 
     <!-- ─── CALENDAR PAGE ─── -->
@@ -472,7 +473,7 @@ input[type=number]{ -moz-appearance:textfield; }
       <span class="text-2xl">⏳</span><span class="text-[10px] font-semibold text-gray-600">倒數</span>
     </button>
     <button onclick="closeMoreMenu();navigate('notes')" class="flex flex-col items-center gap-1.5 py-3 rounded-xl hover:bg-gray-50 transition-colors">
-      <span class="text-2xl">📝</span><span class="text-[10px] font-semibold text-gray-600">筆記</span>
+      <span class="text-2xl">🔗</span><span class="text-[10px] font-semibold text-gray-600">萬能入口</span>
     </button>
     <button onclick="closeMoreMenu();navigate('recurring')" class="flex flex-col items-center gap-1.5 py-3 rounded-xl hover:bg-gray-50 transition-colors">
       <span class="text-2xl">🔁</span><span class="text-[10px] font-semibold text-gray-600">自動入帳</span>
@@ -500,9 +501,12 @@ input[type=number]{ -moz-appearance:textfield; }
       <div class="type-tabs"><div class="type-tab active" data-t="expense" onclick="setTxType('expense')">💸 支出</div><div class="type-tab" data-t="income" onclick="setTxType('income')">💰 收入</div><div class="type-tab" data-t="transfer" onclick="setTxType('transfer')">🔄 轉帳</div></div>
       <div>
         <label class="block text-xs font-bold text-gray-500 mb-1.5">金額</label>
-        <div class="relative">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg" id="tx-currency-prefix">HK$</span>
-          <input id="tx-amount" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" class="w-full pl-14 pr-4 py-3 text-2xl font-black text-right border-2 border-gray-200 rounded-xl inp-amber bg-gray-50">
+        <div class="flex gap-2 items-center">
+          <div class="relative flex-1">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg" id="tx-currency-prefix">HK$</span>
+            <input id="tx-amount" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" class="w-full pl-14 pr-4 py-3 text-2xl font-black text-right border-2 border-gray-200 rounded-xl inp-amber bg-gray-50">
+          </div>
+          <button type="button" onclick="openCalc('tx-amount')" class="w-11 h-11 flex-shrink-0 rounded-xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center text-xl">🧮</button>
         </div>
       </div>
       <div id="tx-cat-section">
@@ -622,7 +626,10 @@ input[type=number]{ -moz-appearance:textfield; }
       <div><label class="block text-xs font-bold text-gray-500 mb-2">圖示</label><div class="grid grid-cols-6 gap-2" id="acc-icon-grid"></div></div>
       <div>
         <label class="block text-xs font-bold text-gray-500 mb-1.5">初始餘額</label>
-        <div class="relative"><span id="acc-balance-prefix" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">HK$</span><input id="acc-balance-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" class="w-full pl-12 pr-4 py-2.5 text-sm font-bold border-2 border-gray-200 rounded-xl inp-amber"></div>
+        <div class="flex gap-2 items-center">
+          <div class="relative flex-1"><span id="acc-balance-prefix" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">HK$</span><input id="acc-balance-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" class="w-full pl-12 pr-4 py-2.5 text-sm font-bold border-2 border-gray-200 rounded-xl inp-amber"></div>
+          <button type="button" onclick="openCalc('acc-balance-input')" class="w-10 h-10 flex-shrink-0 rounded-xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center">🧮</button>
+        </div>
       </div>
       <div class="flex gap-3">
         <button id="acc-del-btn" onclick="deleteAccount()" class="hidden flex-none px-4 py-3 rounded-xl bg-red-50 text-red-500 font-bold text-sm">🗑️</button>
@@ -640,7 +647,10 @@ input[type=number]{ -moz-appearance:textfield; }
       <button onclick="closeModal('budget-modal')" class="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm">✕</button>
     </div>
     <div class="p-5 space-y-4">
-      <div class="relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">HK$</span><input id="budget-input" type="number" inputmode="decimal" placeholder="例如：10000" step="0.01" class="w-full pl-14 pr-4 py-3 text-xl font-black border-2 border-gray-200 rounded-xl inp-amber"></div>
+      <div class="flex gap-2 items-center">
+        <div class="relative flex-1"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">HK$</span><input id="budget-input" type="number" inputmode="decimal" placeholder="例如：10000" step="0.01" class="w-full pl-14 pr-4 py-3 text-xl font-black border-2 border-gray-200 rounded-xl inp-amber"></div>
+        <button type="button" onclick="openCalc('budget-input')" class="w-11 h-11 flex-shrink-0 rounded-xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center text-xl">🧮</button>
+      </div>
       <p class="text-xs text-gray-400">設為 0 則停用預算追蹤</p>
       <button onclick="saveBudget()" class="w-full py-3 rounded-xl bg-amber-400 text-gray-900 font-black">確認</button>
     </div>
@@ -854,6 +864,19 @@ input[type=number]{ -moz-appearance:textfield; }
             <option value="EUR">€</option><option value="KRW">₩</option><option value="AUD">A$</option><option value="SGD">S$</option>
           </select>
           <input id="split-amount-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" oninput="updateSplitRows()" class="w-36 pr-4 py-3 text-xl font-black text-right border-2 border-gray-200 rounded-xl inp-amber bg-gray-50 flex-1">
+          <button type="button" onclick="openCalc('split-amount-input',updateSplitRows)" class="w-10 h-10 flex-shrink-0 rounded-xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center">🧮</button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-500 mb-1.5">服務費</label>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="setSplitCharge(0)" id="sc-btn-0" class="px-3 py-2 rounded-xl text-xs font-bold border-2 border-purple-500 bg-purple-500 text-white">0%</button>
+          <button type="button" onclick="setSplitCharge(10)" id="sc-btn-10" class="px-3 py-2 rounded-xl text-xs font-bold border-2 border-gray-200 text-gray-500">10%</button>
+          <div class="flex items-center gap-1 flex-1">
+            <input id="split-charge-input" type="number" min="0" max="100" value="0" oninput="onSplitChargeInput()" class="w-16 border-2 border-gray-200 rounded-xl px-2 py-2 text-sm font-bold text-center inp-amber">
+            <span class="text-xs text-gray-400">% 自訂</span>
+          </div>
+          <div class="text-xs text-gray-500 font-bold" id="split-charge-display"></div>
         </div>
       </div>
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">由誰付款</label><select id="split-payer-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select></div>
@@ -966,7 +989,12 @@ input[type=number]{ -moz-appearance:textfield; }
     <div class="p-5 space-y-4">
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">名稱</label><input id="rec-name-input" type="text" placeholder="例如：Spotify 會員" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
       <div class="grid grid-cols-2 gap-3">
-        <div><label class="block text-xs font-bold text-gray-500 mb-1.5">金額</label><input id="rec-amount-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
+        <div><label class="block text-xs font-bold text-gray-500 mb-1.5">金額</label>
+          <div class="flex gap-2">
+            <input id="rec-amount-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" class="flex-1 border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber">
+            <button type="button" onclick="openCalc('rec-amount-input')" class="w-10 h-10 flex-shrink-0 rounded-xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center">🧮</button>
+          </div>
+        </div>
         <div><label class="block text-xs font-bold text-gray-500 mb-1.5">每月幾號</label><input id="rec-day-input" type="number" min="1" max="31" placeholder="1" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber text-center"></div>
       </div>
       <div><label class="block text-xs font-bold text-gray-500 mb-1.5">類別</label><div class="grid grid-cols-5 gap-1.5" id="rec-cat-grid"></div></div>
@@ -976,6 +1004,60 @@ input[type=number]{ -moz-appearance:textfield; }
         <button id="rec-del-btn" onclick="deleteRecurring()" class="hidden flex-none px-4 py-3 rounded-xl bg-red-50 text-red-500 font-bold text-sm">🗑️</button>
         <button onclick="saveRecurring()" class="flex-1 py-3 rounded-xl bg-amber-400 text-gray-900 font-black">儲存</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Links (portal) Add Modal -->
+<div id="link-modal" class="modal-overlay center hidden" onclick="closeIfBdrop(event,'link-modal')">
+  <div class="modal-sheet">
+    <div class="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+      <div class="font-black text-gray-900 text-base" id="link-modal-title">新增連結</div>
+      <button onclick="closeModal('link-modal')" class="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm">✕</button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div><label class="block text-xs font-bold text-gray-500 mb-1.5">標題</label><input id="link-title-input" type="text" placeholder="例如：Google" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
+      <div><label class="block text-xs font-bold text-gray-500 mb-1.5">網址</label><input id="link-url-input" type="url" placeholder="https://..." class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
+      <div><label class="block text-xs font-bold text-gray-500 mb-1.5">自訂圖示（留空自動取首字母）</label><input id="link-icon-input" type="text" maxlength="4" placeholder="例如：🔗 或留空" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-2xl text-center inp-amber"></div>
+      <div class="flex gap-3">
+        <button id="link-del-btn" onclick="deleteLink()" class="hidden flex-none px-4 py-3 rounded-xl bg-red-50 text-red-500 font-bold text-sm">🗑️</button>
+        <button onclick="saveLink()" class="flex-1 py-3 rounded-xl bg-amber-400 text-gray-900 font-black">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Calculator Modal -->
+<div id="calc-modal" class="modal-overlay center hidden" onclick="closeIfBdrop(event,'calc-modal')">
+  <div class="modal-sheet" style="max-width:320px">
+    <div class="px-4 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+      <div class="font-black text-gray-900">🧮 計算器</div>
+      <button onclick="closeModal('calc-modal')" class="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm">✕</button>
+    </div>
+    <div class="p-4 space-y-3">
+      <div id="calc-display" class="bg-gray-50 rounded-xl px-4 py-3 text-right text-2xl font-black text-gray-800 border-2 border-gray-200 min-h-[56px] break-all">0</div>
+      <div id="calc-expr" class="text-right text-xs text-gray-400 px-1 min-h-[16px]"></div>
+      <div class="grid grid-cols-4 gap-2">
+        <button onclick="calcInput('C')" class="calc-btn col-span-2 bg-red-50 text-red-500">C 清除</button>
+        <button onclick="calcInput('⌫')" class="calc-btn bg-gray-100 text-gray-600">⌫</button>
+        <button onclick="calcInput('/')" class="calc-btn bg-amber-100 text-amber-700 font-black">÷</button>
+        <button onclick="calcInput('7')" class="calc-btn">7</button>
+        <button onclick="calcInput('8')" class="calc-btn">8</button>
+        <button onclick="calcInput('9')" class="calc-btn">9</button>
+        <button onclick="calcInput('*')" class="calc-btn bg-amber-100 text-amber-700 font-black">×</button>
+        <button onclick="calcInput('4')" class="calc-btn">4</button>
+        <button onclick="calcInput('5')" class="calc-btn">5</button>
+        <button onclick="calcInput('6')" class="calc-btn">6</button>
+        <button onclick="calcInput('-')" class="calc-btn bg-amber-100 text-amber-700 font-black">−</button>
+        <button onclick="calcInput('1')" class="calc-btn">1</button>
+        <button onclick="calcInput('2')" class="calc-btn">2</button>
+        <button onclick="calcInput('3')" class="calc-btn">3</button>
+        <button onclick="calcInput('+')" class="calc-btn bg-amber-100 text-amber-700 font-black">＋</button>
+        <button onclick="calcInput('0')" class="calc-btn col-span-2">0</button>
+        <button onclick="calcInput('.')" class="calc-btn">.</button>
+        <button onclick="calcInput('=')" class="calc-btn bg-amber-400 text-gray-900 font-black">=</button>
+      </div>
+      <button onclick="calcConfirm()" class="w-full py-3 rounded-xl bg-green-500 text-white font-black">✓ 套用金額</button>
     </div>
   </div>
 </div>
@@ -1096,6 +1178,9 @@ db.version(5).stores({
 db.version(6).stores({
   recurring:'++id,name,amount,category,accountId,dayOfMonth,ledgerId,currency,lastRun',
 });
+db.version(7).stores({
+  links:'++id,title,url,icon,sortOrder',
+});
 
 // ─── DEFAULT DATA ─────────────────────────────────────────────────────────────
 const DEFAULT_EXPENSE_CATS=[
@@ -1131,7 +1216,7 @@ const S={
   calMonth:null, calSelectedDate:null,
   editingTodoId:null, editingSplitExpId:null, editingCatId:null,
   editingHabitId:null, editingCdId:null, editingNoteId:null, editingGroupId:null,
-  editingRecurringId:null, selectedRecCat:null,
+  editingRecurringId:null, selectedRecCat:null, editingLinkId:null, splitSelf:null,
   selectedCat:null, selectedAccIcon:ACC_ICONS[0],
   selectedCatColor:'#FBBF24', selectedHabitIcon:HABIT_ICONS[0],
   selectedHabitColor:'#FBBF24', selectedCdIcon:CD_ICONS[0],
@@ -1203,7 +1288,7 @@ async function navigate(page){
     el.classList.toggle('text-amber-500',a);
     el.classList.toggle('text-gray-400',!a);
   });
-  const titles={ledger:'明細',stats:'統計',todo:'待辦清單',calendar:'月曆',split:'AA 拆帳',habit:'習慣追蹤',countdown:'倒數計時',notes:'靈感筆記',recurring:'自動週期入帳',settings:'設定'};
+  const titles={ledger:'明細',stats:'統計',todo:'待辦清單',calendar:'月曆',split:'AA 拆帳',habit:'習慣追蹤',countdown:'倒數計時',notes:'萬能入口',recurring:'自動週期入帳',settings:'設定'};
   document.getElementById('header-title').textContent=titles[page]||'';
   const ha=document.getElementById('header-actions');
   if(page==='ledger'){
@@ -1225,7 +1310,7 @@ function onFab(){
   else if(S.page==='split'){ if(!S.activeGroupId){toast('請先選擇或建立群組');return;} openSplitExpenseModal(); }
   else if(S.page==='habit') openHabitModal();
   else if(S.page==='countdown') openCountdownModal();
-  else if(S.page==='notes') openNoteModal();
+  else if(S.page==='notes') openLinkModal();
   else if(S.page==='recurring') openRecurringModal();
 }
 
@@ -1239,6 +1324,7 @@ async function renderPage(){
     case 'habit': await renderHabit(); break;
     case 'countdown': await renderCountdown(); break;
     case 'recurring': await renderRecurring(); break;
+    case 'notes': await renderLinks(); break;
     case 'settings': await renderSettings(); break;
   }
 }
@@ -1391,8 +1477,7 @@ async function renderStats(){
   const sel=document.getElementById('stats-ledger-select');
   const prev=sel.value;
   sel.innerHTML=`<option value="__all__">📊 全部帳本</option>`+S.ledgers.map(l=>`<option value="${l.id}">${esc(l.name)} (${l.currency})</option>`).join('');
-  // Restore selection: default to active ledger on first load
-  if(!S._statsLedgerSel) S._statsLedgerSel=String(S.activeLedgerId);
+  if(!S._statsLedgerSel) S._statsLedgerSel='__all__';
   sel.value=S._statsLedgerSel||'__all__';
 
   document.getElementById('stats-month-label').textContent=dayjs(S.currentMonth+'-01').format('YYYY年M月');
@@ -1422,7 +1507,7 @@ async function renderStats(){
     // Pie using primary (active) ledger for chart relevance
     const activeTxs=allTxs.filter(t=>t.ledgerId===S.activeLedgerId);
     const curr=(S.ledgers.find(x=>x.id===S.activeLedgerId)||{currency:'HKD'}).currency;
-    renderStatsCharts(activeTxs, curr, start, end, S.activeLedgerId);
+    renderStatsCharts(activeTxs, curr, start, end, '__all__');
   } else {
     const lid=parseInt(sel.value);
     const l=S.ledgers.find(x=>x.id===lid); const curr=l?l.currency:'HKD';
@@ -1471,21 +1556,55 @@ async function renderStatsCharts(txs, curr, start, end, ledgerId){
     options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmtAmt(ctx.parsed.y,curr)}}},scales:{y:{beginAtZero:true,grid:{color:'#F9FAFB'},ticks:{callback:v=>currSym(curr)+v}},x:{grid:{display:false}}}}
   });
 
-  // Line: 6 months
-  const months=[],mi=[],me=[];
-  for(let i=5;i>=0;i--){
-    const m=dayjs().subtract(i,'month'); months.push(m.format('M月'));
-    const[ms,mend]=monthRange(m.format('YYYY-MM'));
-    const mtxs=await db.transactions.where('ledgerId').equals(ledgerId).and(t=>t.date>=ms&&t.date<=mend).toArray();
-    mi.push(mtxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0));
-    me.push(mtxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0));
-  }
+  // Line chart: balance trend
+  const months=[];
+  for(let i=5;i>=0;i--) months.push(dayjs().subtract(i,'month').format('M月'));
   destroyChart('line-chart');
-  charts['line-chart']=new Chart(document.getElementById('line-chart').getContext('2d'),{
-    type:'line',
-    data:{labels:months,datasets:[{label:'收入',data:mi,borderColor:'#10B981',backgroundColor:'rgba(16,185,129,.1)',borderWidth:2,pointRadius:4,tension:.4,fill:true},{label:'支出',data:me,borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,.1)',borderWidth:2,pointRadius:4,tension:.4,fill:true}]},
-    options:{responsive:true,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtAmt(ctx.parsed.y,curr)}`}}},scales:{y:{beginAtZero:true,grid:{color:'#F9FAFB'},ticks:{callback:v=>currSym(curr)+v}},x:{grid:{display:false}}}}
-  });
+  const lineLegendEl=document.getElementById('line-legend');
+
+  if(ledgerId==='__all__'){
+    // One line per ledger showing monthly net (income - expense)
+    const LEDGER_COLORS=['#FBBF24','#3B82F6','#10B981','#EF4444','#A855F7','#F97316','#06B6D4','#84CC16'];
+    const datasets=[];
+    const legendItems=[];
+    for(let li=0;li<S.ledgers.length;li++){
+      const l=S.ledgers[li];
+      const color=LEDGER_COLORS[li%LEDGER_COLORS.length];
+      const data=[];
+      for(let i=5;i>=0;i--){
+        const m=dayjs().subtract(i,'month');
+        const[ms,mend]=monthRange(m.format('YYYY-MM'));
+        const mtxs=await db.transactions.where('ledgerId').equals(l.id).and(t=>t.date>=ms&&t.date<=mend).toArray();
+        const inc=mtxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+        const exp=mtxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+        data.push(inc-exp);
+      }
+      datasets.push({label:l.name,data,borderColor:color,backgroundColor:color+'22',borderWidth:2,pointRadius:3,tension:.4,fill:false});
+      legendItems.push(`<div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full inline-block" style="background:${color}"></span><span class="text-xs text-gray-600">${esc(l.name)}</span></div>`);
+    }
+    charts['line-chart']=new Chart(document.getElementById('line-chart').getContext('2d'),{
+      type:'line',
+      data:{labels:months,datasets},
+      options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y>=0?'+':''}${ctx.parsed.y.toFixed(2)}`}}},scales:{y:{grid:{color:'#F9FAFB'},ticks:{callback:v=>v>=0?'+'+v:v}},x:{grid:{display:false}}}}
+    });
+    if(lineLegendEl) lineLegendEl.innerHTML=legendItems.join('');
+  } else {
+    // Single ledger: income vs expense lines
+    const mi=[],me=[];
+    for(let i=5;i>=0;i--){
+      const m=dayjs().subtract(i,'month');
+      const[ms,mend]=monthRange(m.format('YYYY-MM'));
+      const mtxs=await db.transactions.where('ledgerId').equals(parseInt(ledgerId)).and(t=>t.date>=ms&&t.date<=mend).toArray();
+      mi.push(mtxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0));
+      me.push(mtxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0));
+    }
+    charts['line-chart']=new Chart(document.getElementById('line-chart').getContext('2d'),{
+      type:'line',
+      data:{labels:months,datasets:[{label:'收入',data:mi,borderColor:'#10B981',backgroundColor:'rgba(16,185,129,.1)',borderWidth:2,pointRadius:4,tension:.4,fill:true},{label:'支出',data:me,borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,.1)',borderWidth:2,pointRadius:4,tension:.4,fill:true}]},
+      options:{responsive:true,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtAmt(ctx.parsed.y,curr)}`}}},scales:{y:{beginAtZero:true,grid:{color:'#F9FAFB'},ticks:{callback:v=>currSym(curr)+v}},x:{grid:{display:false}}}}
+    });
+    if(lineLegendEl) lineLegendEl.innerHTML='';
+  }
 }
 
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
@@ -1694,6 +1813,15 @@ async function renderSplit(){
   }
   const group=S.groups.find(g=>g.id===S.activeGroupId); if(!group) return;
   nameEl.textContent=group.name;
+
+  // Populate self-member selector
+  const selfBar=document.getElementById('split-self-bar');
+  const selfSel=document.getElementById('split-self-select');
+  if(selfBar&&selfSel&&group.members.length>0){
+    selfBar.classList.remove('hidden');
+    selfSel.innerHTML=`<option value="">（未選擇）</option>`+group.members.map(m=>`<option value="${esc(m)}" ${S.splitSelf===m?'selected':''}>${esc(m)}</option>`).join('');
+  }
+  updateSplitSelfTotal();
   const expenses=await db.splitExpenses.where('groupId').equals(S.activeGroupId).toArray();
   expenses.sort((a,b)=>b.date>a.date?1:-1);
   const settlement=computeSettlement(group.members,expenses.filter(e=>!e.settled));
@@ -1711,6 +1839,7 @@ async function renderSplit(){
         </div>`).join('')}
       ${settlement.length>0?`<div class="mt-3 flex gap-2">
         <button onclick="settleAll()" class="flex-1 text-xs bg-green-50 border border-green-200 text-green-700 font-bold py-2 rounded-xl">✅ 全部結清</button>
+        <button onclick="splitAddToLedger()" class="flex-1 text-xs bg-amber-50 border border-amber-200 text-amber-700 font-bold py-2 rounded-xl">📒 我的部分入帳</button>
       </div>`:''}
     </div>
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
@@ -2234,31 +2363,198 @@ async function renderCountdown(){
 }
 
 // ─── RENDER NOTES ─────────────────────────────────────────────────────────────
-async function renderNotes(){
-  const notes=await db.notes.toArray();
-  notes.sort((a,b)=>b.createdAt-a.createdAt);
-  const wrap=document.getElementById('notes-wrap');
-  if(notes.length===0){
-    wrap.innerHTML=`<div class="text-center py-16 text-gray-300"><div class="text-5xl mb-3">📝</div><div class="text-sm font-semibold">尚無筆記</div></div>`;
+// ─── LINKS PORTAL ─────────────────────────────────────────────────────────────
+async function renderLinks(){
+  const links=await db.links.toArray();
+  links.sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id));
+  const wrap=document.getElementById('links-wrap');
+  if(!wrap) return;
+  if(links.length===0){
+    wrap.innerHTML=`<div class="text-center py-16 text-gray-300"><div class="text-5xl mb-3">🔗</div><div class="text-sm font-semibold">尚無連結</div><div class="text-xs mt-1">點擊右下角 ＋ 新增連結</div></div>`;
     return;
   }
-  wrap.innerHTML=notes.map(n=>`
-    <div class="note-card mb-3" onclick="openNoteModal(${n.id})">
-      <div class="text-sm text-gray-800 leading-relaxed mb-2 whitespace-pre-wrap">${esc(n.text)}</div>
-      <div class="text-[10px] text-gray-400 font-semibold">${dayjs(n.createdAt).format('YYYY/MM/DD HH:mm')}</div>
-    </div>`).join('');
+  wrap.innerHTML=`<div class="grid grid-cols-3 gap-3">
+    ${links.map(l=>{
+      const icon=l.icon&&l.icon.trim()?l.icon.trim():(l.title?l.title.trim().charAt(0).toUpperCase():'?');
+      const isEmoji=/\p{Emoji}/u.test(icon);
+      return `<div class="relative bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform" onclick="openUrl('${esc(l.url)}')">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black ${isEmoji?'bg-amber-50':'bg-amber-400 text-gray-900'}">${icon}</div>
+        <div class="text-xs font-semibold text-gray-700 text-center leading-tight truncate w-full text-center">${esc(l.title)}</div>
+        <button onclick="event.stopPropagation();openLinkModal(${l.id})" class="absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] hover:bg-amber-100 hover:text-amber-700">✏️</button>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
-async function saveQuickNote(){
-  const t=document.getElementById('quick-note-input').value.trim();
-  if(!t)return;
-  await db.notes.add({text:t,createdAt:Date.now()});
-  document.getElementById('quick-note-input').value='';
-  toast('已記錄 📝');
-  renderNotes();
+function openUrl(url){
+  if(!url)return;
+  const u=url.startsWith('http')?url:'https://'+url;
+  window.open(u,'_blank','noopener');
 }
 
-// ─── RENDER SETTINGS ──────────────────────────────────────────────────────────
+function openLinkModal(id=null){
+  S.editingLinkId=id;
+  const delBtn=document.getElementById('link-del-btn');
+  if(id){
+    db.links.get(id).then(l=>{
+      document.getElementById('link-title-input').value=l.title;
+      document.getElementById('link-url-input').value=l.url;
+      document.getElementById('link-icon-input').value=l.icon||'';
+      document.getElementById('link-modal-title').textContent='編輯連結';
+      delBtn.classList.remove('hidden');
+    });
+  } else {
+    document.getElementById('link-title-input').value='';
+    document.getElementById('link-url-input').value='';
+    document.getElementById('link-icon-input').value='';
+    document.getElementById('link-modal-title').textContent='新增連結';
+    delBtn.classList.add('hidden');
+  }
+  openModal('link-modal');
+}
+async function saveLink(){
+  const title=document.getElementById('link-title-input').value.trim();
+  const url=document.getElementById('link-url-input').value.trim();
+  if(!title||!url){toast('請填寫標題和網址');return;}
+  const icon=document.getElementById('link-icon-input').value.trim();
+  const data={title,url,icon};
+  if(S.editingLinkId) await db.links.update(S.editingLinkId,data);
+  else await db.links.add(data);
+  closeModal('link-modal');
+  renderLinks();
+}
+async function deleteLink(){
+  if(!S.editingLinkId||!confirm('確定刪除此連結？'))return;
+  await db.links.delete(S.editingLinkId);
+  closeModal('link-modal');
+  renderLinks();
+}
+
+// ─── CALCULATOR ───────────────────────────────────────────────────────────────
+let _calcTarget=null, _calcCb=null, _calcExpr='', _calcResult='0';
+
+function openCalc(targetId, cb=null){
+  _calcTarget=targetId; _calcCb=cb;
+  const cur=document.getElementById(targetId)?.value||'';
+  _calcExpr=cur?String(cur):''; _calcResult=cur||'0';
+  document.getElementById('calc-display').textContent=_calcResult;
+  document.getElementById('calc-expr').textContent='';
+  openModal('calc-modal');
+}
+function calcInput(k){
+  const disp=document.getElementById('calc-display');
+  const expr=document.getElementById('calc-expr');
+  if(k==='C'){ _calcExpr=''; _calcResult='0'; disp.textContent='0'; expr.textContent=''; return; }
+  if(k==='⌫'){ _calcExpr=_calcExpr.slice(0,-1)||''; _calcResult=_calcExpr||'0'; disp.textContent=_calcResult; return; }
+  if(k==='='){
+    try{
+      const r=Function('"use strict";return ('+_calcExpr+')')();
+      if(!isFinite(r)){ toast('計算錯誤'); return; }
+      _calcResult=parseFloat(r.toFixed(4)).toString();
+      expr.textContent=_calcExpr+' =';
+      _calcExpr=_calcResult;
+      disp.textContent=_calcResult;
+    }catch{ toast('計算錯誤'); }
+    return;
+  }
+  _calcExpr+=k;
+  _calcResult=_calcExpr;
+  disp.textContent=_calcExpr;
+}
+function calcConfirm(){
+  // Evaluate if expression pending
+  if(_calcExpr&&_calcExpr!==_calcResult){
+    try{ const r=Function('"use strict";return ('+_calcExpr+')')(); _calcResult=parseFloat(r.toFixed(4)).toString(); }catch{}
+  }
+  const el=document.getElementById(_calcTarget);
+  if(el){ el.value=_calcResult; el.dispatchEvent(new Event('input')); }
+  if(_calcCb) _calcCb();
+  closeModal('calc-modal');
+}
+
+// ─── SPLIT SERVICE CHARGE ─────────────────────────────────────────────────────
+let _splitChargePct=0;
+function setSplitCharge(pct){
+  _splitChargePct=pct;
+  document.getElementById('split-charge-input').value=pct;
+  ['0','10'].forEach(v=>{
+    const b=document.getElementById('sc-btn-'+v);
+    if(b){ const active=parseInt(v)===pct; b.className=`px-3 py-2 rounded-xl text-xs font-bold border-2 ${active?'border-purple-500 bg-purple-500 text-white':'border-gray-200 text-gray-500'}`; }
+  });
+  updateSplitChargeDisplay();
+  updateSplitRows();
+}
+function onSplitChargeInput(){
+  const v=Math.max(0,Math.min(100,parseFloat(document.getElementById('split-charge-input').value)||0));
+  _splitChargePct=v;
+  ['0','10'].forEach(k=>{ const b=document.getElementById('sc-btn-'+k); if(b) b.className='px-3 py-2 rounded-xl text-xs font-bold border-2 border-gray-200 text-gray-500'; });
+  updateSplitChargeDisplay();
+  updateSplitRows();
+}
+function updateSplitChargeDisplay(){
+  const amt=parseFloat(document.getElementById('split-amount-input')?.value)||0;
+  const curr=document.getElementById('split-currency-input')?.value||'HKD';
+  const el=document.getElementById('split-charge-display');
+  if(el&&amt>0&&_splitChargePct>0) el.textContent='含服務費: '+fmtAmt(amt*(1+_splitChargePct/100),curr);
+  else if(el) el.textContent='';
+}
+
+// ─── SPLIT SELF MEMBER ────────────────────────────────────────────────────────
+function onSplitSelfChange(val){
+  S.splitSelf=val||null;
+  updateSplitSelfTotal();
+}
+async function updateSplitSelfTotal(){
+  const bar=document.getElementById('split-self-bar');
+  const totalEl=document.getElementById('split-self-total');
+  if(!bar||!totalEl||!S.activeGroupId) return;
+  if(!S.splitSelf){ bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  const expenses=await db.splitExpenses.where('groupId').equals(S.activeGroupId).and(e=>!e.settled).toArray();
+  const currMap={};
+  expenses.forEach(exp=>{
+    const c=exp.currency||'HKD';
+    if(!currMap[c]) currMap[c]=0;
+    if(exp.splits){
+      const mine=exp.splits.find(s=>s.member===S.splitSelf);
+      if(mine) currMap[c]+=mine.amount;
+    }
+  });
+  const parts=Object.entries(currMap).filter(([,v])=>v>0).map(([c,v])=>fmtAmt(v,c));
+  totalEl.textContent=parts.length?'我應付: '+parts.join(' + '):'我應付: 0';
+}
+async function splitAddToLedger(){
+  if(!S.splitSelf){ toast('請先設定「本人」'); return; }
+  const expenses=await db.splitExpenses.where('groupId').equals(S.activeGroupId).and(e=>!e.settled).toArray();
+  const byAcc={};
+  for(const exp of expenses){
+    const mine=exp.splits&&exp.splits.find(s=>s.member===S.splitSelf);
+    if(!mine||mine.amount<=0) continue;
+    const curr=exp.currency||'HKD';
+    const acc=S.accounts.find(a=>(a.currency||'HKD')===curr&&(a.sortOrder??a.id)===Math.min(...S.accounts.filter(x=>(x.currency||'HKD')===curr).map(x=>x.sortOrder??x.id)));
+    if(!acc) continue;
+    const key=acc.id+'|'+curr;
+    if(!byAcc[key]) byAcc[key]={accId:acc.id,curr,total:0,descs:[]};
+    byAcc[key].total+=mine.amount;
+    byAcc[key].descs.push(exp.desc);
+  }
+  if(!Object.keys(byAcc).length){ toast('無需入帳'); return; }
+  const l=S.ledgers.find(x=>x.id===S.activeLedgerId);
+  for(const key of Object.keys(byAcc)){
+    const b=byAcc[key];
+    const rounded=Math.round(b.total);
+    const sameDayTxs=await db.transactions.filter(t=>t.ledgerId===S.activeLedgerId&&t.date===dayjs().format('YYYY-MM-DD')).toArray();
+    const maxOrder=sameDayTxs.reduce((m,t)=>Math.max(m,t.sortOrder??t.id??0),0);
+    await db.transactions.add({ledgerId:S.activeLedgerId,type:'expense',amount:rounded,category:'🤝',accountId:b.accId,toAccountId:null,date:dayjs().format('YYYY-MM-DD'),note:'AA拆帳: '+b.descs.join('、'),receipts:[],sortOrder:maxOrder+1});
+    const acc=await db.accounts.get(b.accId);
+    if(acc) await db.accounts.update(b.accId,{balance:(acc.balance||0)-rounded});
+  }
+  S.accounts=await db.accounts.toArray();
+  toast('✅ 已自動入帳至明細');
+  renderSplit();
+}
+
+
 async function renderSettings(){
   const budget=parseFloat(S.settings.budget)||0;
   document.getElementById('budget-setting-display').textContent=budget>0?fmtAmt(budget,'HKD'):'未設定';
@@ -3159,6 +3455,8 @@ async function openSplitExpenseModal(id=null){
     document.getElementById('split-currency-input').value=defaultCurrency;
     S.splitMode='equal';
     S.customSplits=[];
+    _splitChargePct=0;
+    document.getElementById('split-charge-input').value=0;
     document.getElementById('split-del-btn').classList.add('hidden');
     document.getElementById('split-modal-title').textContent='新增費用';
   }
@@ -3176,28 +3474,32 @@ function setSplitMode(m){
 }
 function updateSplitRows(){
   const group=S.groups.find(g=>g.id===S.activeGroupId);
-  const amt=parseFloat(document.getElementById('split-amount-input').value)||0;
+  if(!group) return;
+  const baseAmt=parseFloat(document.getElementById('split-amount-input').value)||0;
   const curr=document.getElementById('split-currency-input').value||'HKD';
   const sym=currSym(curr);
+  const amt=parseFloat((baseAmt*(1+(_splitChargePct||0)/100)).toFixed(2));
+  updateSplitChargeDisplay();
   const wrap=document.getElementById('split-rows-wrap');
 
   if(S.splitMode==='equal'){
-    const each=amt/group.members.length;
+    const each=Math.round(amt/group.members.length);
     wrap.innerHTML=group.members.map(m=>`
       <div class="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
         <span class="text-sm text-gray-600">${esc(m)}</span>
-        <span class="text-sm font-bold text-gray-400">${fmtAmt(each,curr)}</span>
+        <span class="text-sm font-bold ${S.splitSelf===m?'text-purple-600 font-black':'text-gray-400'}">${fmtAmt(each,curr)}</span>
       </div>`).join('');
     document.getElementById('split-sum-check').textContent='';
   } else {
     wrap.innerHTML=group.members.map(m=>{
       const cur=S.customSplits.find(s=>s.member===m);
+      const rounded=cur?Math.round(cur.amount):0;
       return `
       <div class="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
-        <span class="text-sm text-gray-600">${esc(m)}</span>
+        <span class="text-sm text-gray-600 ${S.splitSelf===m?'font-black text-purple-600':''}">${esc(m)}</span>
         <div class="flex items-center gap-1">
           <span class="text-xs text-gray-400">${sym}</span>
-          <input type="number" step="0.01" value="${cur?cur.amount:''}" oninput="onCustomSplitInp(this,'${esc(m)}')" class="w-20 text-right border-b border-gray-200 text-sm font-bold focus:border-purple-500 outline-none">
+          <input type="number" step="1" value="${cur?rounded:''}" oninput="onCustomSplitInp(this,'${esc(m)}')" class="w-20 text-right border-b border-gray-200 text-sm font-bold focus:border-purple-500 outline-none">
         </div>
       </div>`;
     }).join('');
@@ -3224,7 +3526,8 @@ function checkSplitSum(){
 }
 async function saveSplitExpense(){
   const desc=document.getElementById('split-desc-input').value.trim();
-  const amt=parseFloat(document.getElementById('split-amount-input').value)||0;
+  const baseAmt=parseFloat(document.getElementById('split-amount-input').value)||0;
+  const amt=parseFloat((baseAmt*(1+(_splitChargePct||0)/100)).toFixed(2));
   const paidBy=document.getElementById('split-payer-input').value;
   const date=document.getElementById('split-date-input').value;
   const currency=document.getElementById('split-currency-input').value||'HKD';
