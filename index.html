@@ -134,8 +134,14 @@ input[type=number]{ -moz-appearance:textfield; }
 .no-scrollbar{ scrollbar-width:none; }
 .no-scrollbar::-webkit-scrollbar{ display:none; }
 
-/* Tx drag-to-reorder */
-.tx-drag-handle{ cursor:grab; color:#9CA3AF; padding:0 3px; user-select:none; touch-action:none; flex-shrink:0; font-size:15px; line-height:1; }
+/* iOS drag fix — prevent long-press text selection on draggable items */
+.tx-item,.cat-row,.acc-row{
+  user-select:none; -webkit-user-select:none;
+  -webkit-touch-callout:none; touch-action:pan-y;
+}
+.tx-drag-handle,.cat-drag-handle,.acc-drag-handle{
+  touch-action:none;
+} cursor:grab; color:#9CA3AF; padding:0 3px; user-select:none; touch-action:none; flex-shrink:0; font-size:15px; line-height:1; }
 .tx-drag-handle:active{ cursor:grabbing; }
 .tx-item.dragging{ opacity:.4; }
 .tx-item.drag-over{ border-top:2.5px solid #FBBF24; }
@@ -270,12 +276,12 @@ input[type=number]{ -moz-appearance:textfield; }
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"><div class="text-xs text-gray-400 font-semibold mb-1">💚 本月收入</div><div class="text-xl font-black text-green-500" id="stats-income-val">0</div></div>
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"><div class="text-xs text-gray-400 font-semibold mb-1">❤️ 本月支出</div><div class="text-xl font-black text-red-500" id="stats-expense-val">0</div></div>
         </div>
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div id="stats-pie-wrap" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div class="text-sm font-bold text-gray-700 mb-3">📊 支出類別分佈</div>
           <div class="flex justify-center" style="max-height:200px"><canvas id="pie-chart"></canvas></div>
           <div id="pie-legend" class="mt-3 space-y-1.5"></div>
         </div>
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div id="stats-bar-wrap" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div class="text-sm font-bold text-gray-700 mb-3">📈 近 7 日支出</div>
           <canvas id="bar-chart" style="max-height:180px"></canvas>
         </div>
@@ -518,6 +524,10 @@ input[type=number]{ -moz-appearance:textfield; }
         <select id="tx-account" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select>
       </div>
       <div id="tx-to-acc-section" class="hidden">
+        <div id="tx-transfer-type-row" class="flex gap-2 mb-2">
+          <button id="ttt-local" onclick="setTransferType('local')" class="flex-1 py-1.5 rounded-lg text-xs font-bold border-2 border-blue-500 bg-blue-500 text-white">🏦 本地轉帳</button>
+          <button id="ttt-intl" onclick="setTransferType('intl')" class="flex-1 py-1.5 rounded-lg text-xs font-bold border-2 border-gray-200 text-gray-500">🌐 國際匯款</button>
+        </div>
         <label class="block text-xs font-bold text-gray-500 mb-1.5">轉入帳戶</label>
         <select id="tx-to-account" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select>
       </div>
@@ -1216,7 +1226,7 @@ const S={
   calMonth:null, calSelectedDate:null,
   editingTodoId:null, editingSplitExpId:null, editingCatId:null,
   editingHabitId:null, editingCdId:null, editingNoteId:null, editingGroupId:null,
-  editingRecurringId:null, selectedRecCat:null, editingLinkId:null, splitSelf:null,
+  editingRecurringId:null, selectedRecCat:null, editingLinkId:null, splitSelf:null, txAccFilter:null, txTransferType:'local',
   selectedCat:null, selectedAccIcon:ACC_ICONS[0],
   selectedCatColor:'#FBBF24', selectedHabitIcon:HABIT_ICONS[0],
   selectedHabitColor:'#FBBF24', selectedCdIcon:CD_ICONS[0],
@@ -1437,6 +1447,7 @@ async function renderLedger(){
 
   let filtered=txs;
   if(S.txFilter!=='all') filtered=txs.filter(t=>t.type===S.txFilter);
+  if(S.txAccFilter!==null) filtered=filtered.filter(t=>t.accountId===S.txAccFilter||t.toAccountId===S.txAccFilter);
   filtered.sort((a,b)=>b.date>a.date?1:b.date<a.date?-1:(b.sortOrder||b.id)-(a.sortOrder||a.id));
   const wrap=document.getElementById('tx-list-wrap');
   if(filtered.length===0){wrap.innerHTML=`<div class="text-center py-16 text-gray-300"><div class="text-5xl mb-3">📭</div><div class="text-sm font-semibold">本月暫無交易記錄</div></div>`;return;}
@@ -1460,7 +1471,7 @@ function renderTxItem(t,curr='HKD'){
     S.cats.find(c=>c.emoji===t.category&&c.type===t.type)||{emoji:t.category||'💰',label:'未分類',color:'#9CA3AF'};
   const sign=t.type==='expense'?'-':t.type==='income'?'+':'';
   const amtCls=t.type==='expense'?'text-red-500':t.type==='income'?'text-green-500':'text-blue-500';
-  return `<div class="tx-item flex items-center gap-2 bg-white rounded-xl px-2 py-2.5 mb-2 border border-gray-100 shadow-sm" data-id="${t.id}" draggable="true" ondragstart="txDragStart(event,${t.id})" ondragover="txDragOver(event)" ondrop="txDrop(event,${t.id})" ondragend="txDragEnd()">
+  return `<div class="tx-item flex items-center gap-2 bg-white rounded-xl px-2 py-2.5 mb-2 border border-gray-100 shadow-sm" data-id="${t.id}" draggable="true" ondragstart="txDragStart(event,${t.id})" ondragover="txDragOver(event)" ondrop="txDrop(event,${t.id})" ondragend="txDragEnd()" ontouchstart="txTouchStart(event,${t.id})" ontouchmove="txTouchMove(event)" ontouchend="txTouchEnd(event)">
     <div class="tx-drag-handle select-none" title="拖拽排序">⠿</div>
     <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 cursor-pointer" style="background:${catObj.color}22" onclick="openTxDetail(${t.id})">${catObj.emoji}</div>
     <div class="flex-1 min-w-0 cursor-pointer" onclick="openTxDetail(${t.id})">
@@ -1525,7 +1536,14 @@ async function renderStats(){
 function onStatsLedgerChange(v){ S._statsLedgerSel=v; renderStats(); }
 
 async function renderStatsCharts(txs, curr, start, end, ledgerId){
-  // Pie
+  // Show/hide per-ledger charts based on mode
+  const isAll=ledgerId==='__all__';
+  const pieWrap=document.getElementById('stats-pie-wrap');
+  const barWrap=document.getElementById('stats-bar-wrap');
+  if(pieWrap) pieWrap.style.display=isAll?'none':'';
+  if(barWrap) barWrap.style.display=isAll?'none':'';
+
+  if(!isAll){
   const catMap={};
   txs.filter(t=>t.type==='expense').forEach(t=>{catMap[t.category||'💰']=(catMap[t.category||'💰']||0)+t.amount;});
   const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
@@ -1558,6 +1576,7 @@ async function renderStatsCharts(txs, curr, start, end, ledgerId){
     data:{labels:days,datasets:[{label:'支出',data:vals,backgroundColor:vals.map(v=>v>0?'#FBBF24':'#F3F4F6'),borderRadius:6,borderSkipped:false}]},
     options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmtAmt(ctx.parsed.y,curr)}}},scales:{y:{beginAtZero:true,grid:{color:'#F9FAFB'},ticks:{callback:v=>currSym(curr)+v}},x:{grid:{display:false}}}}
   });
+  } // end if(!isAll)
 
   // Line chart: balance trend
   const months=[];
@@ -1612,8 +1631,9 @@ async function renderStatsCharts(txs, curr, start, end, ledgerId){
 
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 
-// ─── TX DRAG-TO-REORDER (insert above target) ────────────────────────────────
-let _dragTxId=null;
+// ─── TX DRAG-TO-REORDER (insert above target, iOS touch support) ─────────────
+let _dragTxId=null, _touchDragTx=null;
+
 function txDragStart(e,id){
   _dragTxId=id;
   e.dataTransfer.effectAllowed='move';
@@ -1633,21 +1653,22 @@ async function txDrop(e,targetId){
   e.preventDefault();
   document.querySelectorAll('.tx-item').forEach(el=>el.classList.remove('dragging','drag-over'));
   if(_dragTxId===targetId||!_dragTxId) return;
-  // Get all visible tx items in current DOM order
   const allItems=[...document.querySelectorAll('.tx-item')].map(el=>parseInt(el.dataset.id));
   const srcIdx=allItems.indexOf(_dragTxId);
-  const tgtIdx=allItems.indexOf(targetId);
-  if(srcIdx<0||tgtIdx<0){ _dragTxId=null; return; }
-  // Reorder array: remove src, insert before target
+  if(srcIdx<0){ _dragTxId=null; return; }
   allItems.splice(srcIdx,1);
   const newTgtIdx=allItems.indexOf(targetId);
   allItems.splice(newTgtIdx,0,_dragTxId);
-  // Assign new sortOrders based on new positions (larger = higher in list since we sort desc)
   const base=Date.now();
   await Promise.all(allItems.map((id,i)=>db.transactions.update(id,{sortOrder:base+(allItems.length-i)})));
   _dragTxId=null;
   renderLedger();
 }
+// iOS touch fallback
+function txTouchStart(e,id){ _dragTxId=id; _touchDragTx={id}; setTimeout(()=>document.querySelector(`.tx-item[data-id="${id}"]`)?.classList.add('dragging'),0); }
+function txTouchMove(e){ if(!_touchDragTx){return;} e.preventDefault(); const t=e.touches[0]; const el=document.elementFromPoint(t.clientX,t.clientY)?.closest('.tx-item'); document.querySelectorAll('.tx-item.drag-over').forEach(x=>x.classList.remove('drag-over')); if(el&&el.dataset.id!=_touchDragTx.id) el.classList.add('drag-over'); }
+async function txTouchEnd(e){ if(!_touchDragTx){return;} const t=e.changedTouches[0]; const row=document.elementFromPoint(t.clientX,t.clientY)?.closest('.tx-item'); const tId=row?parseInt(row.dataset.id):null; document.querySelectorAll('.tx-item').forEach(x=>x.classList.remove('dragging','drag-over')); if(tId&&tId!==_touchDragTx.id){ await txDrop({preventDefault:()=>{}},tId); } _touchDragTx=null; _dragTxId=null; }
+
 
 // ─── TX FILTER (with toggle) ──────────────────────────────────────────────────
 function setTxFilter(f){
@@ -1658,6 +1679,47 @@ function setTxFilter(f){
     const el=document.getElementById('fc-'+k);
     if(el) el.className='filter-chip px-3 py-1.5 rounded-full text-xs font-bold border-2 whitespace-nowrap '+(k===f?active[k]:'border-gray-200 bg-white text-gray-500');
   });
+  renderLedger();
+}
+
+function setTransferType(type){
+  S.txTransferType=type;
+  ['local','intl'].forEach(t=>{
+    const b=document.getElementById('ttt-'+t);
+    if(!b) return;
+    const active=t===type;
+    b.className=`flex-1 py-1.5 rounded-lg text-xs font-bold border-2 ${active?'border-blue-500 bg-blue-500 text-white':'border-gray-200 text-gray-500'}`;
+  });
+  // Repopulate to-account based on type
+  renderTxToAccountSelect();
+}
+
+function renderTxToAccountSelect(){
+  const l=S.ledgers.find(x=>x.id===S.activeLedgerId);
+  const curr=l?l.currency:'HKD';
+  let accs;
+  if(S.txTransferType==='intl'){
+    // International: show accounts from OTHER ledgers (different currency or different ledger)
+    accs=S.accounts.filter(a=>(a.currency||'HKD')!==curr)
+      .slice().sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id));
+    if(accs.length===0){
+      // Fallback: all accounts not in current ledger's currency
+      accs=S.accounts.filter(a=>(a.currency||'HKD')!==curr);
+    }
+  } else {
+    // Local: same currency accounts
+    accs=S.accounts.filter(a=>(a.currency||'HKD')===curr)
+      .slice().sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id));
+  }
+  const sel=document.getElementById('tx-to-account');
+  if(!sel) return;
+  sel.innerHTML=accs.length>0
+    ?accs.map(a=>`<option value="${a.id}">${a.icon} ${esc(a.name)}${S.txTransferType==='intl'?' ('+( a.currency||'HKD')+')':''}</option>`).join('')
+    :`<option value="">（無可用帳戶）</option>`;
+}
+
+function setTxAccFilter(accId){
+  S.txAccFilter=accId;
   renderLedger();
 }
 
@@ -1853,9 +1915,14 @@ async function renderSplit(){
           const balHtml=entries.length===0
             ?`<span class="text-sm font-black text-gray-400">${fmtAmt(0,'HKD')}</span>`
             :entries.map(([c,v])=>`<span class="text-sm font-black ${v>=0?'text-green-500':'text-red-500'}">${v>=0?'+':''}${fmtAmt(Math.abs(v),c)}</span>`).join(' ');
+          const isSelf=S.splitSelf===mb.name;
           return `
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-sm font-bold text-purple-700">${mb.name.charAt(0)}</div><span class="text-sm font-semibold text-gray-700">${esc(mb.name)}</span></div>
+          <div class="flex items-center justify-between py-1 cursor-pointer rounded-xl px-2 -mx-2 transition-colors ${isSelf?'bg-purple-50':''}" onclick="onSplitSelfChange('${esc(mb.name)}')">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full ${isSelf?'bg-purple-500 text-white':'bg-purple-100 text-purple-700'} flex items-center justify-center text-sm font-bold">${mb.name.charAt(0)}</div>
+              <span class="text-sm font-semibold ${isSelf?'text-purple-700':'text-gray-700'}">${esc(mb.name)}</span>
+              ${isSelf?'<span class="text-[10px] font-black text-purple-500 bg-purple-100 px-1.5 py-0.5 rounded-full">本人</span>':''}
+            </div>
             <div class="flex flex-col items-end gap-0.5">${balHtml}</div>
           </div>`;
         }).join('')}
@@ -2720,7 +2787,12 @@ function setTxType(t){
   document.getElementById('tx-cat-section').classList.toggle('hidden',isTransfer);
   document.getElementById('tx-to-acc-section').classList.toggle('hidden',!isTransfer);
   document.getElementById('tx-acc-label').textContent=isTransfer?'從帳戶':'帳戶';
-  if(!isTransfer) renderTxCatGrid();
+  if(isTransfer){
+    S.txTransferType='local';
+    setTransferType('local');
+  } else {
+    renderTxCatGrid();
+  }
 }
 
 function renderTxCatGrid(){
@@ -2752,7 +2824,7 @@ function renderTxAccountSelect(){
     ? matching.map(a=>`<option value="${a.id}">${a.icon} ${esc(a.name)}</option>`).join('')
     : `<option value="">（無 ${curr} 帳戶，請先新增）</option>`;
   document.getElementById('tx-account').innerHTML=html;
-  document.getElementById('tx-to-account').innerHTML=html;
+  // tx-to-account is handled by renderTxToAccountSelect when transfer mode is set
 }
 
 async function saveTx(){
