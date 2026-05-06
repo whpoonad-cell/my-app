@@ -1630,7 +1630,7 @@ function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];
 
 // ─── UNIVERSAL LONG-PRESS DRAG (tx / cat / acc) ───────────────────────────────
 let _lpTimer=null, _lpDragging=false, _lpSrcEl=null, _lpSrcId=null, _lpType=null, _lpOverEl=null;
-const LP_DELAY=450; // ms long-press threshold
+const LP_DELAY=250; // ms long-press threshold
 
 function _lpCancel(){
   clearTimeout(_lpTimer); _lpTimer=null;
