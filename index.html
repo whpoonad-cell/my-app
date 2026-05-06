@@ -1440,10 +1440,7 @@ async function renderLedger(){
         <div class="text-xs text-gray-400 font-semibold leading-tight">${esc(a.name)}</div>
         <div class="text-sm font-black ${(a.balance||0)<0?'text-red-500':'text-gray-800'}">${(a.balance||0)<0?'-':''}${fmtAmt(Math.abs(a.balance||0),curr)}</div>
       </div>
-    </div>`).join('')+
-    `<div class="flex-shrink-0 bg-white rounded-xl border-2 ${S.txAccFilter===null?'border-amber-400 bg-amber-50':'border-gray-200'} px-3 py-2 flex items-center shadow-sm cursor-pointer transition-colors" onclick="setTxAccFilter(null)">
-      <span class="text-xs font-bold ${S.txAccFilter===null?'text-amber-700':'text-gray-400'}">全部帳戶</span>
-    </div>`;
+    </div>`).join('');
 
   let filtered=txs;
   if(S.txFilter!=='all') filtered=txs.filter(t=>t.type===S.txFilter);
@@ -1471,8 +1468,8 @@ function renderTxItem(t,curr='HKD'){
     S.cats.find(c=>c.emoji===t.category&&c.type===t.type)||{emoji:t.category||'💰',label:'未分類',color:'#9CA3AF'};
   const sign=t.type==='expense'?'-':t.type==='income'?'+':'';
   const amtCls=t.type==='expense'?'text-red-500':t.type==='income'?'text-green-500':'text-blue-500';
-  return `<div class="tx-item flex items-center gap-2 bg-white rounded-xl px-2 py-2.5 mb-2 border border-gray-100 shadow-sm" data-id="${t.id}" draggable="true" ondragstart="txDragStart(event,${t.id})" ondragover="txDragOver(event)" ondrop="txDrop(event,${t.id})" ondragend="txDragEnd()" ontouchstart="txTouchStart(event,${t.id})" ontouchmove="txTouchMove(event)" ontouchend="txTouchEnd(event)">
-    <div class="tx-drag-handle select-none" title="拖拽排序">⠿</div>
+  return `<div class="tx-item flex items-center gap-2 bg-white rounded-xl px-2 py-2.5 mb-2 border border-gray-100 shadow-sm" data-id="${t.id}">
+    <div class="tx-drag-handle select-none" title="長按拖拽" onpointerdown="txLP(event,${t.id})" onpointermove="_lpPointerMove(event)" onpointerup="_lpPointerUp(event)" onpointercancel="_lpCancel()">⠿</div>
     <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 cursor-pointer" style="background:${catObj.color}22" onclick="openTxDetail(${t.id})">${catObj.emoji}</div>
     <div class="flex-1 min-w-0 cursor-pointer" onclick="openTxDetail(${t.id})">
       <div class="text-sm font-semibold text-gray-800 truncate">${esc(t.note)||catObj.label}</div>
@@ -1631,44 +1628,85 @@ async function renderStatsCharts(txs, curr, start, end, ledgerId){
 
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 
-// ─── TX DRAG-TO-REORDER (insert above target, iOS touch support) ─────────────
-let _dragTxId=null, _touchDragTx=null;
+// ─── UNIVERSAL LONG-PRESS DRAG (tx / cat / acc) ───────────────────────────────
+let _lpTimer=null, _lpDragging=false, _lpSrcEl=null, _lpSrcId=null, _lpType=null, _lpOverEl=null;
+const LP_DELAY=450; // ms long-press threshold
 
-function txDragStart(e,id){
-  _dragTxId=id;
-  e.dataTransfer.effectAllowed='move';
-  setTimeout(()=>e.target.classList.add('dragging'),0);
+function _lpCancel(){
+  clearTimeout(_lpTimer); _lpTimer=null;
+  if(_lpSrcEl) _lpSrcEl.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  _lpDragging=false; _lpSrcEl=null; _lpSrcId=null; _lpType=null; _lpOverEl=null;
 }
-function txDragOver(e){
+
+function _lpPointerDown(e,id,type){
+  // Only primary pointer (left button or single touch)
+  if(e.pointerType==='mouse'&&e.button!==0) return;
+  e.currentTarget.setPointerCapture(e.pointerId);
+  _lpSrcId=id; _lpType=type;
+  _lpSrcEl=e.currentTarget.closest('[data-id]')||e.currentTarget;
+  clearTimeout(_lpTimer);
+  _lpTimer=setTimeout(()=>{
+    _lpDragging=true;
+    _lpSrcEl.classList.add('dragging');
+  }, LP_DELAY);
+}
+
+function _lpPointerMove(e){
+  if(!_lpDragging) return;
   e.preventDefault();
-  e.dataTransfer.dropEffect='move';
-  document.querySelectorAll('.tx-item.drag-over').forEach(el=>el.classList.remove('drag-over'));
-  const el=e.currentTarget;
-  if(el.dataset.id!=_dragTxId) el.classList.add('drag-over');
+  const x=e.clientX, y=e.clientY;
+  _lpSrcEl.style.pointerEvents='none';
+  const under=document.elementFromPoint(x,y);
+  _lpSrcEl.style.pointerEvents='';
+  const rowSel=_lpType==='tx'?'.tx-item':_lpType==='cat'?'.cat-row':'.acc-row';
+  document.querySelectorAll(rowSel+'.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  const targetRow=under?.closest(rowSel);
+  if(targetRow&&targetRow!==_lpSrcEl) targetRow.classList.add('drag-over');
+  _lpOverEl=targetRow||null;
 }
-function txDragEnd(){
-  document.querySelectorAll('.tx-item').forEach(el=>el.classList.remove('dragging','drag-over'));
+
+async function _lpPointerUp(e){
+  const wasDragging=_lpDragging;
+  const overEl=_lpOverEl;
+  const srcId=_lpSrcId;
+  const type=_lpType;
+  _lpCancel();
+  if(!wasDragging||!overEl) return;
+  const targetId=parseInt(overEl.dataset.id);
+  if(!targetId||targetId===srcId) return;
+  await _lpCommit(type,srcId,targetId);
 }
-async function txDrop(e,targetId){
-  e.preventDefault();
-  document.querySelectorAll('.tx-item').forEach(el=>el.classList.remove('dragging','drag-over'));
-  if(_dragTxId===targetId||!_dragTxId) return;
-  const allItems=[...document.querySelectorAll('.tx-item')].map(el=>parseInt(el.dataset.id));
-  const srcIdx=allItems.indexOf(_dragTxId);
-  if(srcIdx<0){ _dragTxId=null; return; }
+
+async function _lpCommit(type,srcId,targetId){
+  const rowSel=type==='tx'?'.tx-item':type==='cat'?'.cat-row':'.acc-row';
+  const allItems=[...document.querySelectorAll(rowSel)].map(el=>parseInt(el.dataset.id));
+  const srcIdx=allItems.indexOf(srcId);
+  if(srcIdx<0) return;
   allItems.splice(srcIdx,1);
-  const newTgtIdx=allItems.indexOf(targetId);
-  allItems.splice(newTgtIdx,0,_dragTxId);
+  allItems.splice(allItems.indexOf(targetId),0,srcId);
   const base=Date.now();
-  await Promise.all(allItems.map((id,i)=>db.transactions.update(id,{sortOrder:base+(allItems.length-i)})));
-  _dragTxId=null;
-  renderLedger();
+  if(type==='tx'){
+    await Promise.all(allItems.map((id,i)=>db.transactions.update(id,{sortOrder:base+(allItems.length-i)})));
+    renderLedger();
+  } else if(type==='cat'){
+    await Promise.all(allItems.map((id,i)=>db.categories.update(id,{sortOrder:base+i})));
+    S.cats=await db.categories.toArray(); renderCatList();
+  } else if(type==='acc'){
+    await Promise.all(allItems.map((id,i)=>db.accounts.update(id,{sortOrder:base+i})));
+    S.accounts=await db.accounts.toArray(); renderSettings();
+  }
 }
-// iOS touch fallback
-function txTouchStart(e,id){ _dragTxId=id; _touchDragTx={id}; setTimeout(()=>document.querySelector(`.tx-item[data-id="${id}"]`)?.classList.add('dragging'),0); }
-function txTouchMove(e){ if(!_touchDragTx){return;} e.preventDefault(); const t=e.touches[0]; const el=document.elementFromPoint(t.clientX,t.clientY)?.closest('.tx-item'); document.querySelectorAll('.tx-item.drag-over').forEach(x=>x.classList.remove('drag-over')); if(el&&el.dataset.id!=_touchDragTx.id) el.classList.add('drag-over'); }
-async function txTouchEnd(e){ if(!_touchDragTx){return;} const t=e.changedTouches[0]; const row=document.elementFromPoint(t.clientX,t.clientY)?.closest('.tx-item'); const tId=row?parseInt(row.dataset.id):null; document.querySelectorAll('.tx-item').forEach(x=>x.classList.remove('dragging','drag-over')); if(tId&&tId!==_touchDragTx.id){ await txDrop({preventDefault:()=>{}},tId); } _touchDragTx=null; _dragTxId=null; }
 
+// Named helpers called from HTML
+function txLP(e,id){ _lpPointerDown(e,id,'tx'); }
+function catLP(e,id){ _lpPointerDown(e,id,'cat'); }
+function accLP(e,id){ _lpPointerDown(e,id,'acc'); }
+
+// Global capture for move/up/cancel
+document.addEventListener('pointermove',e=>{ if(_lpDragging)_lpPointerMove(e); },{passive:false});
+document.addEventListener('pointerup',e=>_lpPointerUp(e));
+document.addEventListener('pointercancel',()=>_lpCancel());
 
 // ─── TX FILTER (with toggle) ──────────────────────────────────────────────────
 function setTxFilter(f){
@@ -1719,7 +1757,8 @@ function renderTxToAccountSelect(){
 }
 
 function setTxAccFilter(accId){
-  S.txAccFilter=accId;
+  // Toggle: click same account again to return to all
+  S.txAccFilter=(S.txAccFilter===accId)?null:accId;
   renderLedger();
 }
 
@@ -2640,12 +2679,8 @@ async function renderSettings(){
     </div>
     ${accs.map(a=>`
     <div class="acc-row px-3 py-3 flex items-center gap-2 hover:bg-gray-50 border-b border-gray-50 last:border-0"
-         data-id="${a.id}" draggable="true"
-         ondragstart="accDragStart(event,${a.id})"
-         ondragover="accDragOver(event)"
-         ondrop="accDrop(event,${a.id})"
-         ondragend="accDragEnd()">
-      <div class="acc-drag-handle" title="拖拽排序">⠿</div>
+         data-id="${a.id}">
+      <div class="acc-drag-handle" title="長按拖拽" onpointerdown="accLP(event,${a.id})">⠿</div>
       <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="openAccountModal(${a.id})">
         <span class="text-xl">${a.icon}</span>
         <span class="text-sm font-semibold text-gray-800">${esc(a.name)}</span>
@@ -2665,12 +2700,8 @@ async function renderCatList(){
     .slice().sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id));
   document.getElementById('cat-mgmt-list').innerHTML=cats.map(c=>`
     <div class="cat-row px-3 py-3 flex items-center gap-2 hover:bg-gray-50 border-b border-gray-50 last:border-0"
-         data-id="${c.id}" draggable="true"
-         ondragstart="catDragStart(event,${c.id})"
-         ondragover="catDragOver(event)"
-         ondrop="catDrop(event,${c.id})"
-         ondragend="catDragEnd()">
-      <div class="cat-drag-handle" title="拖拽排序">⠿</div>
+         data-id="${c.id}">
+      <div class="cat-drag-handle" title="長按拖拽" onpointerdown="catLP(event,${c.id})">⠿</div>
       <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="openCatEditModal(${c.id})">
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0" style="background:${c.color}22">${c.emoji}</div>
         <span class="text-sm font-semibold text-gray-800">${esc(c.label)}</span>
@@ -2686,72 +2717,6 @@ async function renderCatList(){
   lucide.createIcons();
 }
 function setCatTab(t){ S.currentCatTab=t; renderCatList(); }
-
-// ─── CATEGORY DRAG-TO-REORDER ─────────────────────────────────────────────────
-let _dragCatId=null;
-function catDragStart(e,id){
-  _dragCatId=id;
-  e.dataTransfer.effectAllowed='move';
-  setTimeout(()=>e.currentTarget.classList.add('dragging'),0);
-}
-function catDragOver(e){
-  e.preventDefault();
-  e.dataTransfer.dropEffect='move';
-  document.querySelectorAll('.cat-row.drag-over').forEach(el=>el.classList.remove('drag-over'));
-  if(e.currentTarget.dataset.id!=_dragCatId) e.currentTarget.classList.add('drag-over');
-}
-function catDragEnd(){
-  document.querySelectorAll('.cat-row').forEach(el=>el.classList.remove('dragging','drag-over'));
-}
-async function catDrop(e,targetId){
-  e.preventDefault();
-  document.querySelectorAll('.cat-row').forEach(el=>el.classList.remove('dragging','drag-over'));
-  if(_dragCatId===targetId||!_dragCatId) return;
-  const allItems=[...document.querySelectorAll('.cat-row')].map(el=>parseInt(el.dataset.id));
-  const srcIdx=allItems.indexOf(_dragCatId);
-  const tgtIdx=allItems.indexOf(targetId);
-  if(srcIdx<0||tgtIdx<0){ _dragCatId=null; return; }
-  allItems.splice(srcIdx,1);
-  allItems.splice(allItems.indexOf(targetId),0,_dragCatId);
-  const base=Date.now();
-  await Promise.all(allItems.map((id,i)=>db.categories.update(id,{sortOrder:base+i})));
-  _dragCatId=null;
-  S.cats=await db.categories.toArray();
-  renderCatList();
-}
-
-// ─── ACCOUNT DRAG-TO-REORDER ──────────────────────────────────────────────────
-let _dragAccId=null;
-function accDragStart(e,id){
-  _dragAccId=id;
-  e.dataTransfer.effectAllowed='move';
-  setTimeout(()=>e.currentTarget.classList.add('dragging'),0);
-}
-function accDragOver(e){
-  e.preventDefault();
-  e.dataTransfer.dropEffect='move';
-  document.querySelectorAll('.acc-row.drag-over').forEach(el=>el.classList.remove('drag-over'));
-  if(e.currentTarget.dataset.id!=_dragAccId) e.currentTarget.classList.add('drag-over');
-}
-function accDragEnd(){
-  document.querySelectorAll('.acc-row').forEach(el=>el.classList.remove('dragging','drag-over'));
-}
-async function accDrop(e,targetId){
-  e.preventDefault();
-  document.querySelectorAll('.acc-row').forEach(el=>el.classList.remove('dragging','drag-over'));
-  if(_dragAccId===targetId||!_dragAccId) return;
-  const allItems=[...document.querySelectorAll('.acc-row')].map(el=>parseInt(el.dataset.id));
-  const srcIdx=allItems.indexOf(_dragAccId);
-  const tgtIdx=allItems.indexOf(targetId);
-  if(srcIdx<0||tgtIdx<0){ _dragAccId=null; return; }
-  allItems.splice(srcIdx,1);
-  allItems.splice(allItems.indexOf(targetId),0,_dragAccId);
-  const base=Date.now();
-  await Promise.all(allItems.map((id,i)=>db.accounts.update(id,{sortOrder:base+i})));
-  _dragAccId=null;
-  S.accounts=await db.accounts.toArray();
-  renderSettings();
-}
 
 // ─── MODAL LOGIC ──────────────────────────────────────────────────────────────
 function openModal(id){
