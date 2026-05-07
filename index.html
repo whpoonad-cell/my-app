@@ -529,7 +529,17 @@ input[type=number]{ -moz-appearance:textfield; }
           <button id="ttt-intl" onclick="setTransferType('intl')" class="flex-1 py-1.5 rounded-lg text-xs font-bold border-2 border-gray-200 text-gray-500">🌐 國際匯款</button>
         </div>
         <label class="block text-xs font-bold text-gray-500 mb-1.5">轉入帳戶</label>
-        <select id="tx-to-account" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select>
+        <select id="tx-to-account" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white mb-2" onchange="updateToAmountPrefix()"></select>
+        <div id="tx-to-amount-row" class="hidden">
+          <label class="block text-xs font-bold text-gray-500 mb-1.5">轉入金額（對方幣種）</label>
+          <div class="flex gap-2 items-center">
+            <div class="relative flex-1">
+              <span id="tx-to-currency-prefix" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+              <input id="tx-to-amount" type="number" inputmode="decimal" placeholder="0.00" step="0.01" min="0" class="w-full pl-10 pr-4 py-2.5 text-lg font-black text-right border-2 border-gray-200 rounded-xl inp-amber bg-gray-50">
+            </div>
+            <button type="button" onclick="openCalc('tx-to-amount')" class="w-10 h-10 flex-shrink-0 rounded-xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center">🧮</button>
+          </div>
+        </div>
       </div>
       <div>
         <label class="block text-xs font-bold text-gray-500 mb-1.5">日期</label>
@@ -1468,8 +1478,8 @@ function renderTxItem(t,curr='HKD'){
     S.cats.find(c=>c.emoji===t.category&&c.type===t.type)||{emoji:t.category||'💰',label:'未分類',color:'#9CA3AF'};
   const sign=t.type==='expense'?'-':t.type==='income'?'+':'';
   const amtCls=t.type==='expense'?'text-red-500':t.type==='income'?'text-green-500':'text-blue-500';
-  return `<div class="tx-item flex items-center gap-2 bg-white rounded-xl px-2 py-2.5 mb-2 border border-gray-100 shadow-sm" data-id="${t.id}">
-    <div class="tx-drag-handle select-none" title="長按拖拽" onpointerdown="txLP(event,${t.id})" onpointermove="_lpPointerMove(event)" onpointerup="_lpPointerUp(event)" onpointercancel="_lpCancel()">⠿</div>
+  return `<div class="tx-item flex items-center gap-2 bg-white rounded-xl px-2 py-2.5 mb-2 border border-gray-100 shadow-sm" data-id="${t.id}" onpointerdown="txLP(event,${t.id})">
+    <div class="tx-drag-handle select-none text-gray-300 pointer-events-none">⠿</div>
     <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 cursor-pointer" style="background:${catObj.color}22" onclick="openTxDetail(${t.id})">${catObj.emoji}</div>
     <div class="flex-1 min-w-0 cursor-pointer" onclick="openTxDetail(${t.id})">
       <div class="text-sm font-semibold text-gray-800 truncate">${esc(t.note)||catObj.label}</div>
@@ -1630,7 +1640,7 @@ function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];
 
 // ─── UNIVERSAL LONG-PRESS DRAG (tx / cat / acc) ───────────────────────────────
 let _lpTimer=null, _lpDragging=false, _lpSrcEl=null, _lpSrcId=null, _lpType=null, _lpOverEl=null;
-const LP_DELAY=250; // ms long-press threshold
+const LP_DELAY=200; // ms long-press threshold
 
 function _lpCancel(){
   clearTimeout(_lpTimer); _lpTimer=null;
@@ -1640,15 +1650,15 @@ function _lpCancel(){
 }
 
 function _lpPointerDown(e,id,type){
-  // Only primary pointer (left button or single touch)
   if(e.pointerType==='mouse'&&e.button!==0) return;
-  e.currentTarget.setPointerCapture(e.pointerId);
+  const startX=e.clientX, startY=e.clientY;
   _lpSrcId=id; _lpType=type;
   _lpSrcEl=e.currentTarget.closest('[data-id]')||e.currentTarget;
   clearTimeout(_lpTimer);
   _lpTimer=setTimeout(()=>{
     _lpDragging=true;
     _lpSrcEl.classList.add('dragging');
+    try{ _lpSrcEl.setPointerCapture(e.pointerId); }catch(_){}
   }, LP_DELAY);
 }
 
@@ -1728,8 +1738,19 @@ function setTransferType(type){
     const active=t===type;
     b.className=`flex-1 py-1.5 rounded-lg text-xs font-bold border-2 ${active?'border-blue-500 bg-blue-500 text-white':'border-gray-200 text-gray-500'}`;
   });
-  // Repopulate to-account based on type
+  const toAmtRow=document.getElementById('tx-to-amount-row');
+  if(toAmtRow) toAmtRow.classList.toggle('hidden', type!=='intl');
   renderTxToAccountSelect();
+  updateToAmountPrefix();
+}
+
+function updateToAmountPrefix(){
+  const sel=document.getElementById('tx-to-account');
+  const prefix=document.getElementById('tx-to-currency-prefix');
+  if(!sel||!prefix) return;
+  const accId=parseInt(sel.value);
+  const acc=S.accounts.find(a=>a.id===accId);
+  if(acc) prefix.textContent=currSym(acc.currency||'HKD');
 }
 
 function renderTxToAccountSelect(){
@@ -2679,8 +2700,8 @@ async function renderSettings(){
     </div>
     ${accs.map(a=>`
     <div class="acc-row px-3 py-3 flex items-center gap-2 hover:bg-gray-50 border-b border-gray-50 last:border-0"
-         data-id="${a.id}">
-      <div class="acc-drag-handle" title="長按拖拽" onpointerdown="accLP(event,${a.id})">⠿</div>
+         data-id="${a.id}" onpointerdown="accLP(event,${a.id})">
+      <div class="acc-drag-handle text-gray-300 pointer-events-none">⠿</div>
       <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="openAccountModal(${a.id})">
         <span class="text-xl">${a.icon}</span>
         <span class="text-sm font-semibold text-gray-800">${esc(a.name)}</span>
@@ -2700,8 +2721,8 @@ async function renderCatList(){
     .slice().sort((a,b)=>(a.sortOrder??a.id)-(b.sortOrder??b.id));
   document.getElementById('cat-mgmt-list').innerHTML=cats.map(c=>`
     <div class="cat-row px-3 py-3 flex items-center gap-2 hover:bg-gray-50 border-b border-gray-50 last:border-0"
-         data-id="${c.id}">
-      <div class="cat-drag-handle" title="長按拖拽" onpointerdown="catLP(event,${c.id})">⠿</div>
+         data-id="${c.id}" onpointerdown="catLP(event,${c.id})">
+      <div class="cat-drag-handle text-gray-300 pointer-events-none">⠿</div>
       <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="openCatEditModal(${c.id})">
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0" style="background:${c.color}22">${c.emoji}</div>
         <span class="text-sm font-semibold text-gray-800">${esc(c.label)}</span>
@@ -2811,6 +2832,14 @@ async function saveTx(){
   if(type==='transfer'){
     txData.toAccountId=parseInt(document.getElementById('tx-to-account').value);
     if(txData.accountId===txData.toAccountId){toast('不能轉帳至同一個帳戶');return;}
+    // International: separate to-amount in the destination currency
+    if(S.txTransferType==='intl'){
+      const toAmt=parseFloat(document.getElementById('tx-to-amount').value);
+      if(!toAmt){toast('請輸入轉入金額');return;}
+      txData.toAmount=toAmt;
+    } else {
+      txData.toAmount=null; // local: same amount
+    }
   }
 
   // Update account balance
@@ -2840,16 +2869,18 @@ async function revertTxImpact(t){
   if(t.type==='expense') await db.accounts.where('id').equals(t.accountId).modify(a=>a.balance+=t.amount);
   else if(t.type==='income') await db.accounts.where('id').equals(t.accountId).modify(a=>a.balance-=t.amount);
   else if(t.type==='transfer'){
+    const toAmt=t.toAmount??t.amount;
     await db.accounts.where('id').equals(t.accountId).modify(a=>a.balance+=t.amount);
-    await db.accounts.where('id').equals(t.toAccountId).modify(a=>a.balance-=t.amount);
+    await db.accounts.where('id').equals(t.toAccountId).modify(a=>a.balance-=toAmt);
   }
 }
 async function applyTxImpact(t){
   if(t.type==='expense') await db.accounts.where('id').equals(t.accountId).modify(a=>a.balance-=t.amount);
   else if(t.type==='income') await db.accounts.where('id').equals(t.accountId).modify(a=>a.balance+=t.amount);
   else if(t.type==='transfer'){
+    const toAmt=t.toAmount??t.amount;
     await db.accounts.where('id').equals(t.accountId).modify(a=>a.balance-=t.amount);
-    await db.accounts.where('id').equals(t.toAccountId).modify(a=>a.balance+=t.amount);
+    await db.accounts.where('id').equals(t.toAccountId).modify(a=>a.balance+=toAmt);
   }
 }
 
@@ -2867,7 +2898,7 @@ async function openTxDetail(id){
     <div class="space-y-4 border-t border-gray-100 pt-5 mt-2">
       <div class="flex justify-between text-sm"><span class="text-gray-400">日期</span><span class="font-bold text-gray-700">${t.date}</span></div>
       <div class="flex justify-between text-sm"><span class="text-gray-400">帳戶</span><span class="font-bold text-gray-700">${acc?acc.icon+' '+acc.name:'--'}</span></div>
-      ${t.type==='transfer'?`<div class="flex justify-between text-sm"><span class="text-gray-400">轉入至</span><span class="font-bold text-gray-700">${S.accounts.find(x=>x.id===t.toAccountId)?.name||'--'}</span></div>`:''}
+      ${t.type==='transfer'?`<div class="flex justify-between text-sm"><span class="text-gray-400">轉入至</span><span class="font-bold text-gray-700">${S.accounts.find(x=>x.id===t.toAccountId)?.name||'--'}${t.toAmount?' ('+fmtAmt(t.toAmount,S.accounts.find(x=>x.id===t.toAccountId)?.currency||'HKD')+')':''}</span></div>`:''}
       <div class="flex flex-col text-sm"><span class="text-gray-400 mb-1">備註</span><span class="font-bold text-gray-700">${esc(t.note)||'無'}</span></div>
       ${t.receipts&&t.receipts.length?`
         <div class="pt-2"><span class="text-gray-400 text-sm">照片</span>
@@ -2896,8 +2927,15 @@ async function editTx(id){
   openModal('tx-modal');
   // Now the select is populated — force-set the correct account
   document.getElementById('tx-account').value=t.accountId;
-  if(t.type==='transfer') document.getElementById('tx-to-account').value=t.toAccountId;
-  else selectTxCat(t.category);
+  if(t.type==='transfer'){
+    document.getElementById('tx-to-account').value=t.toAccountId;
+    if(t.toAmount){
+      setTransferType('intl');
+      document.getElementById('tx-to-amount').value=t.toAmount;
+    } else {
+      setTransferType('local');
+    }
+  } else selectTxCat(t.category);
   document.getElementById('tx-modal-title').textContent='編輯交易';
   document.getElementById('tx-del-btn').classList.remove('hidden');
   updateReceiptsUI();
