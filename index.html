@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -2782,11 +2784,6 @@ async function renderLinks(){
     }).join('')}
   </div>`;
 }
-function openUrl(url){
-  if(!url) return;
-  const u=url.startsWith('http')?url:'https://'+url;
-  window.open(u,'_blank','noopener');
-}
 
 function linkCardClick(e,id,type){
   if(_drag.active) return;
@@ -2802,6 +2799,7 @@ function openUrl(url){
   const u=url.startsWith('http')?url:'https://'+url;
   window.open(u,'_blank','noopener');
 }
+function _getLinkDomain(url){
   if(!url) return '';
   try{
     const u=url.startsWith('http')?url:'https://'+url;
