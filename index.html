@@ -146,20 +146,28 @@ input[type=number]{ -moz-appearance:textfield; }
 .tx-drag-handle:active{ cursor:grabbing; }
 /* Dragging state: scale+amber border+shadow */
 .tx-item.dragging{ transform:scale(1.05); border:2px solid #F59E0B !important; box-shadow:0 8px 24px rgba(245,158,11,.35); z-index:10; position:relative; opacity:1 !important; }
-/* Drop-target: orange top line indicator (no border-top hack — use outline) */
-.tx-item.drag-over{ border-top:3px solid #F97316 !important; }
+/* Drop-target indicators */
+.tx-item.drag-over-top{ border-top:3px solid #F97316 !important; }
+.tx-item.drag-over-bot{ border-bottom:3px solid #F97316 !important; }
 
 /* Cat drag-to-reorder */
 .cat-drag-handle{ cursor:grab; color:#9CA3AF; font-size:14px; padding:0 6px; user-select:none; flex-shrink:0; }
 .cat-drag-handle:active{ cursor:grabbing; }
 .cat-row.dragging{ transform:scale(1.05); border:2px solid #F59E0B !important; box-shadow:0 6px 18px rgba(245,158,11,.3); z-index:10; position:relative; background:#FFFBEB; }
-.cat-row.drag-over{ border-top:3px solid #F97316 !important; }
+.cat-row.drag-over-top{ border-top:3px solid #F97316 !important; }
+.cat-row.drag-over-bot{ border-bottom:3px solid #F97316 !important; }
 
 /* Account drag-to-reorder */
 .acc-drag-handle{ cursor:grab; color:#9CA3AF; font-size:14px; padding:0 6px; user-select:none; flex-shrink:0; }
 .acc-drag-handle:active{ cursor:grabbing; }
 .acc-row.dragging{ transform:scale(1.05); border:2px solid #F59E0B !important; box-shadow:0 6px 18px rgba(245,158,11,.3); z-index:10; position:relative; background:#FFFBEB; }
-.acc-row.drag-over{ border-top:3px solid #F97316 !important; }
+.acc-row.drag-over-top{ border-top:3px solid #F97316 !important; }
+.acc-row.drag-over-bot{ border-bottom:3px solid #F97316 !important; }
+
+/* Link card drag */
+.link-card.dragging{ transform:scale(1.05); outline:2px solid #F59E0B; box-shadow:0 8px 24px rgba(245,158,11,.35); z-index:10; position:relative; }
+.link-card.drag-over-top{ outline:2px solid #F97316; outline-offset:-2px; box-shadow:0 -3px 0 0 #F97316 inset; }
+.link-card.drag-over-bot{ outline:2px solid #F97316; outline-offset:-2px; box-shadow:0 3px 0 0 #F97316 inset; }
 
 /* Countdown dynamic gradients */
 .cd-far  { background:linear-gradient(135deg,#064E3B,#065F46) !important; }
@@ -1088,7 +1096,6 @@ input[type=number]{ -moz-appearance:textfield; }
         <div><label class="block text-xs font-bold text-gray-500 mb-1.5">開始時間</label><input id="event-start-input" type="datetime-local" min="1997-01-01T00:00" max="2047-12-31T23:59" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-1.5">結束時間</label><input id="event-end-input" type="datetime-local" min="1997-01-01T00:00" max="2047-12-31T23:59" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber"></div>
       </div>
-      <div class="flex items-center gap-3"><label class="flex items-center gap-2 cursor-pointer"><input id="event-allday-input" type="checkbox" class="w-4 h-4 accent-amber-400"><span class="text-sm font-semibold text-gray-600">全天活動</span></label></div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="block text-xs font-bold text-gray-500 mb-1.5">重複週期</label><select id="event-repeat-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"><option value="none">不重複</option><option value="daily">每天</option><option value="weekly">每週</option><option value="monthly">每月</option><option value="yearly">每年</option></select></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-1.5">所屬清單</label><select id="event-list-input" class="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold inp-amber bg-white"></select></div>
@@ -1639,63 +1646,85 @@ async function renderStatsCharts(txs, curr, start, end, ledgerId){
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 
 // ─── UNIVERSAL LONG-PRESS DRAG (tx / cat / acc) ───────────────────────────────
-let _lpTimer=null, _lpDragging=false, _lpSrcEl=null, _lpSrcId=null, _lpType=null, _lpOverEl=null;
+let _lpTimer=null, _lpDragging=false, _lpSrcEl=null, _lpSrcId=null, _lpType=null;
+let _lpOverEl=null, _lpInsertAfter=false, _lpStartX=0, _lpStartY=0, _lpMoved=false;
 const LP_DELAY=200; // ms long-press threshold
 
 function _lpCancel(){
   clearTimeout(_lpTimer); _lpTimer=null;
-  if(_lpSrcEl) _lpSrcEl.classList.remove('dragging');
-  document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-  _lpDragging=false; _lpSrcEl=null; _lpSrcId=null; _lpType=null; _lpOverEl=null;
+  if(_lpSrcEl){ _lpSrcEl.classList.remove('dragging'); _lpSrcEl.style.touchAction=''; }
+  document.querySelectorAll('.drag-over-top,.drag-over-bot').forEach(el=>{ el.classList.remove('drag-over-top','drag-over-bot'); });
+  _lpDragging=false; _lpSrcEl=null; _lpSrcId=null; _lpType=null; _lpOverEl=null; _lpInsertAfter=false; _lpMoved=false;
 }
 
 function _lpPointerDown(e,id,type){
   if(e.pointerType==='mouse'&&e.button!==0) return;
-  const startX=e.clientX, startY=e.clientY;
   _lpSrcId=id; _lpType=type;
+  _lpStartX=e.clientX; _lpStartY=e.clientY; _lpMoved=false;
   _lpSrcEl=e.currentTarget.closest('[data-id]')||e.currentTarget;
   clearTimeout(_lpTimer);
   _lpTimer=setTimeout(()=>{
+    if(_lpMoved){ _lpTimer=null; return; } // cancelled by early move
     _lpDragging=true;
     _lpSrcEl.classList.add('dragging');
+    // Lock page scroll for this element once drag confirmed
+    _lpSrcEl.style.touchAction='none';
     try{ _lpSrcEl.setPointerCapture(e.pointerId); }catch(_){}
     try{ navigator.vibrate&&navigator.vibrate(30); }catch(_){}
   }, LP_DELAY);
 }
 
 function _lpPointerMove(e){
-  if(!_lpDragging) return;
+  // Track movement before drag activates — if user moves > 8px before timer fires, cancel
+  if(!_lpDragging){
+    const dx=Math.abs(e.clientX-_lpStartX), dy=Math.abs(e.clientY-_lpStartY);
+    if(dx>8||dy>8){ _lpMoved=true; clearTimeout(_lpTimer); _lpTimer=null; }
+    return;
+  }
   e.preventDefault();
   const x=e.clientX, y=e.clientY;
   _lpSrcEl.style.pointerEvents='none';
   const under=document.elementFromPoint(x,y);
   _lpSrcEl.style.pointerEvents='';
-  const rowSel=_lpType==='tx'?'.tx-item':_lpType==='cat'?'.cat-row':'.acc-row';
-  document.querySelectorAll(rowSel+'.drag-over').forEach(el=>el.classList.remove('drag-over'));
+
+  const rowSel=_lpType==='tx'?'.tx-item':_lpType==='cat'?'.cat-row':_lpType==='acc'?'.acc-row':'.link-card';
+  document.querySelectorAll(rowSel+'.drag-over-top,'+rowSel+'.drag-over-bot').forEach(el=>{ el.classList.remove('drag-over-top','drag-over-bot'); });
+
   const targetRow=under?.closest(rowSel);
-  if(targetRow&&targetRow!==_lpSrcEl) targetRow.classList.add('drag-over');
-  _lpOverEl=targetRow||null;
+  if(targetRow&&targetRow!==_lpSrcEl){
+    const rect=targetRow.getBoundingClientRect();
+    const mid=rect.top+rect.height/2;
+    _lpInsertAfter=y>mid;
+    targetRow.classList.add(_lpInsertAfter?'drag-over-bot':'drag-over-top');
+    _lpOverEl=targetRow;
+  } else {
+    _lpOverEl=null;
+  }
 }
 
 async function _lpPointerUp(e){
   const wasDragging=_lpDragging;
   const overEl=_lpOverEl;
+  const insertAfter=_lpInsertAfter;
   const srcId=_lpSrcId;
   const type=_lpType;
   _lpCancel();
   if(!wasDragging||!overEl) return;
   const targetId=parseInt(overEl.dataset.id);
   if(!targetId||targetId===srcId) return;
-  await _lpCommit(type,srcId,targetId);
+  await _lpCommit(type,srcId,targetId,insertAfter);
 }
 
-async function _lpCommit(type,srcId,targetId){
-  const rowSel=type==='tx'?'.tx-item':type==='cat'?'.cat-row':'.acc-row';
+async function _lpCommit(type,srcId,targetId,insertAfter){
+  const rowSel=type==='tx'?'.tx-item':type==='cat'?'.cat-row':type==='acc'?'.acc-row':'.link-card';
   const allItems=[...document.querySelectorAll(rowSel)].map(el=>parseInt(el.dataset.id));
   const srcIdx=allItems.indexOf(srcId);
-  if(srcIdx<0) return;
+  const tgtIdx=allItems.indexOf(targetId);
+  if(srcIdx<0||tgtIdx<0) return;
+  // Remove src, then insert before or after target's new position
   allItems.splice(srcIdx,1);
-  allItems.splice(allItems.indexOf(targetId),0,srcId);
+  const newTgt=allItems.indexOf(targetId);
+  allItems.splice(insertAfter?newTgt+1:newTgt,0,srcId);
   const base=Date.now();
   if(type==='tx'){
     await Promise.all(allItems.map((id,i)=>db.transactions.update(id,{sortOrder:base+(allItems.length-i)})));
@@ -1706,6 +1735,9 @@ async function _lpCommit(type,srcId,targetId){
   } else if(type==='acc'){
     await Promise.all(allItems.map((id,i)=>db.accounts.update(id,{sortOrder:base+i})));
     S.accounts=await db.accounts.toArray(); renderSettings();
+  } else if(type==='link'){
+    await Promise.all(allItems.map((id,i)=>db.links.update(id,{sortOrder:base+i})));
+    renderLinks();
   }
 }
 
@@ -1713,9 +1745,10 @@ async function _lpCommit(type,srcId,targetId){
 function txLP(e,id){ _lpPointerDown(e,id,'tx'); }
 function catLP(e,id){ _lpPointerDown(e,id,'cat'); }
 function accLP(e,id){ _lpPointerDown(e,id,'acc'); }
+function linkLP(e,id){ _lpPointerDown(e,id,'link'); }
 
 // Global capture for move/up/cancel
-document.addEventListener('pointermove',e=>{ if(_lpDragging)_lpPointerMove(e); },{passive:false});
+document.addEventListener('pointermove',e=>{ _lpPointerMove(e); },{passive:false});
 document.addEventListener('pointerup',e=>_lpPointerUp(e));
 document.addEventListener('pointercancel',()=>_lpCancel());
 
@@ -2471,7 +2504,6 @@ function openEventModal(id=null){
       document.getElementById('event-title-input').value=ev.title;
       document.getElementById('event-start-input').value=(ev.startAt||'').replace('Z','').slice(0,16);
       document.getElementById('event-end-input').value=(ev.endAt||'').replace('Z','').slice(0,16);
-      document.getElementById('event-allday-input').checked=!!ev.allDay;
       document.getElementById('event-repeat-input').value=ev.repeat||'none';
       document.getElementById('event-location-input').value=ev.location||'';
       document.getElementById('event-note-input').value=ev.note||'';
@@ -2499,13 +2531,12 @@ async function saveEvent(){
   const endAt=document.getElementById('event-end-input').value;
   if(!title||!startAt||!endAt){toast('請填寫標題與時間');return;}
   if(startAt>endAt){toast('結束時間不可早於開始時間');return;}
-  const allDay=document.getElementById('event-allday-input').checked;
   const repeat=document.getElementById('event-repeat-input').value;
   const location=document.getElementById('event-location-input').value.trim();
   const note=document.getElementById('event-note-input').value.trim();
   const listId=parseInt(document.getElementById('event-list-input').value)||null;
   const updatedAt=new Date().toISOString();
-  const data={title,startAt,endAt,allDay,repeat,location,note,listId,updatedAt};
+  const data={title,startAt,endAt,allDay:false,repeat,location,note,listId,updatedAt};
   if(S.editingEventId) await db.events.update(S.editingEventId,data);
   else await db.events.add(data);
   closeModal('event-modal');
@@ -2655,31 +2686,47 @@ async function renderLinks(){
     wrap.innerHTML=`<div class="text-center py-16 text-gray-300"><div class="text-5xl mb-3">🔗</div><div class="text-sm font-semibold">尚無連結或相片</div><div class="text-xs mt-1">點擊右下角 ＋ 新增</div></div>`;
     return;
   }
-  wrap.innerHTML=`<div class="grid grid-cols-3 gap-3">
+  wrap.innerHTML=`<div class="grid grid-cols-3 gap-3" id="links-grid">
     ${links.map(l=>{
       if(l.type==='photo'){
-        return `<div class="relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform" onclick="viewImage('${l.imageData||''}')">
-          <img src="${l.imageData||''}" class="w-full h-24 object-cover" loading="lazy">
-          <div class="px-2 py-1.5 text-xs font-semibold text-gray-700 truncate">${esc(l.title)}</div>
+        return `<div class="link-card relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer transition-transform" data-id="${l.id}" onpointerdown="linkLP(event,${l.id})" onclick="linkCardClick(event,${l.id},'photo')">
+          <img src="${l.imageData||''}" class="w-full h-24 object-cover pointer-events-none" loading="lazy">
+          <div class="px-2 py-1.5 text-xs font-semibold text-gray-700 truncate pointer-events-none">${esc(l.title)}</div>
           <button onclick="event.stopPropagation();openLinkModal(${l.id})" class="absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/40 text-white text-[9px]">✏️</button>
         </div>`;
       }
-      // URL link: favicon
       const domain=_getLinkDomain(l.url);
       const faviconUrl=domain?`https://www.google.com/s2/favicons?domain=${domain}&sz=64`:'';
       const fallbackLetter=(l.title||l.url||'?').trim().charAt(0).toUpperCase();
-      return `<div class="relative bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform" onclick="openUrl('${esc(l.url)}')">
-        <div class="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-gray-50">
+      return `<div class="link-card relative bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex flex-col items-center gap-2 cursor-pointer transition-transform" data-id="${l.id}" data-url="${esc(l.url||'')}" onpointerdown="linkLP(event,${l.id})" onclick="linkCardClick(event,${l.id},'url')">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-gray-50 pointer-events-none">
           ${faviconUrl
             ?`<img src="${faviconUrl}" class="w-8 h-8 object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" loading="lazy"><div class="w-12 h-12 rounded-xl bg-amber-400 text-gray-900 font-black text-xl items-center justify-center" style="display:none">${fallbackLetter}</div>`
             :`<div class="w-12 h-12 rounded-xl bg-amber-400 text-gray-900 font-black text-xl flex items-center justify-center">${fallbackLetter}</div>`
           }
         </div>
-        <div class="text-xs font-semibold text-gray-700 text-center leading-tight truncate w-full text-center">${esc(l.title)}</div>
+        <div class="text-xs font-semibold text-gray-700 text-center leading-tight truncate w-full text-center pointer-events-none">${esc(l.title)}</div>
         <button onclick="event.stopPropagation();openLinkModal(${l.id})" class="absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] hover:bg-amber-100 hover:text-amber-700">✏️</button>
       </div>`;
     }).join('')}
   </div>`;
+}
+
+function linkCardClick(e,id,type){
+  // If a drag just completed, swallow the click
+  if(_lpDragging) return;
+  if(type==='photo'){
+    db.links.get(id).then(l=>{ if(l&&l.imageData) viewImage(l.imageData); });
+  } else {
+    const card=e.currentTarget;
+    const url=card.dataset.url;
+    if(url) openUrl(url);
+  }
+}
+function openUrl(url){
+  if(!url) return;
+  const u=url.startsWith('http')?url:'https://'+url;
+  window.open(u,'_blank','noopener');
 }
 
 function _getLinkDomain(url){
